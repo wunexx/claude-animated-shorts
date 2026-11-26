@@ -257,6 +257,9 @@ const front = (out: Stage, cam: CamInfo, t: number, i: number, o: Outfit, okey: 
   if (fo.wave === 0) fo = { ...fo, wave: undefined }; // wave 0 still raised the arm (bodyFront checks wave !== undefined)
   const sc = opts.scale ?? 1;
   if (opts.face !== undefined && fo.yaw === undefined) fo = { ...fo, yaw: yawFor(cam, p, opts.face, 5, opts.cheat ?? (typeof opts.face === "number" ? 0 : 25)) };
+  // a big beard does not turn with the face: at 3/4 the features slide off it and the face reads lopsided (Lighthouse
+  // 2026-11-26, the user saw it). Bearded characters turn at most 8 deg unless seen from behind (20 still slid the features).
+  if (o.beard && fo.yaw !== undefined && Math.abs(fo.yaw) > 8 && Math.abs(fo.yaw) < 100) fo = { ...fo, yaw: Math.sign(fo.yaw) * 8 };
   out.places.push(person(cam, { i, o, okey }, p[0], p[1], p[2], { side: false, mirror: false }, { blink: lidAt(t, i), ...fo }, {}, sc));
   if (opts.blob !== false) blob(out, p[0], p[1], p[2], sc);
 };

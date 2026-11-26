@@ -15,6 +15,7 @@
 #   rats:     squeak(r, f0, k) chirps, snip (scissors), tear (paper rip), scurry(r, dur) claws (Rat Tails)
 #   war:      mg_burst(r, n, rate, dist), jam_clank, engine(dur, r, rpm, rough), buzz(dur, r, flies), emu_boom(r, k),
 #             thumps(r, times, base), stamp (Emu War)
+#   lighthouse: clock_tick(r, dur, rate) clockwork tick-tock, steam_whistle(r, dur, f) ship's whistle (Lighthouse)
 #   storm:    thunder_crack(r, dist) (a strike you see: crack + rip + boom), lightning_zap (cartoon flash sizzle),
 #             rain_bed(dur, r, heavy, roof, near) (stereo bed); rumble = far thunder only
 # Plus sfx_gen (G.*): creak, rattle, whoosh, wood_crack, timber_tear, splash_big, water_bed, breeze, bird_chirps,
@@ -406,6 +407,38 @@ def stamp(r):
     thock = np.sin(TAU * 180 * t) * np.exp(-t / 0.03) + 0.5 * np.sin(TAU * 410 * t) * np.exp(-t / 0.02)
     slap = bp(r.standard_normal(ns(d)), 800, 5000) * np.exp(-t / 0.01)
     return fades(thock + 0.7 * slap, 0.0005, 0.05)
+
+
+# ---------------------------------------------------------------- generators (Lighthouse, 2026-11-26)
+def clock_tick(r, dur, rate=4.0, f0=3100.0, tock=0.82, level=1.0):
+    """clockwork ticking: alternating tick / tock clinks at `rate` per second with a faint gear purr underneath"""
+    n = ns(dur)
+    y = np.zeros(n)
+    k = 0
+    t = 0.02
+    while t < dur - 0.15:
+        c = G.clink(r, f0 * (1.0 if k % 2 == 0 else tock), dur=0.09, bright=0.7)
+        a = ns(t)
+        m = min(len(c), n - a)
+        y[a:a + m] += c[:m] * (0.9 if k % 2 == 0 else 0.7)
+        t += 1.0 / rate * r.uniform(0.97, 1.03)
+        k += 1
+    y += 0.05 * bp(r.standard_normal(n), 200, 900, 1) * (0.6 + 0.4 * smooth_noise(n, r, 6.0))
+    return fades(level * y, 0.01, 0.05)
+
+
+def steam_whistle(r, dur=1.4, f=330.0):
+    """a steamship's whistle: a breathy chord (root, fourth, sixth) with a pitch scoop and a steam hiss"""
+    t = tt(dur)
+    env = np.clip(t / 0.12, 0, 1) * np.clip((dur - t) / 0.35, 0, 1)
+    scoop = 1.0 - 0.06 * np.exp(-t / 0.08)
+    y = np.zeros(len(t))
+    for m, g in ((1.0, 1.0), (1.335, 0.7), (1.68, 0.5)):
+        ph = phase(f * m * scoop * (1 + 0.004 * np.sin(TAU * 5.5 * t)))
+        y += g * (np.sin(ph) + 0.35 * np.sin(2 * ph) + 0.15 * np.sin(3 * ph))
+    y = lp(y, 2600, 2) * env
+    y += 0.35 * bp(r.standard_normal(len(t)), 1500, 7000, 1) * env
+    return fades(0.4 * y, 0.01, 0.1)
 
 
 def render_cues(C, v_ref, on_event=None):

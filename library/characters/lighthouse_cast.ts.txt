@@ -1,0 +1,51 @@
+// LIBRARY PART: Lighthouse cast + fx - KEEPER_O (navy jacket, peaked cap, beard), CAPTAIN_O (steamer captain), ENGINEER_O (1890 engineer: frock coat, top hat in cap colour, beard, red tie), SWIM_KID, FRIEND_O; fx fxBigWeight (cast-iron clock weight, 400x500, held overhead with "lift"), fxLensFace(k) (cartoon eyes + grin opening on a lens, 420x260), fxCloth(k) (chamois cloth with silver drips, 300x420), fxGlint(k) (4-point sparkle, 128), fxSweatDrop (64x96).
+// Append to the END of toon.ts. The keeper's pointing pose is the core prop "point"; staging examples in the Lighthouse short's cast.ts (vapour wisps = fxMist soft cards with rot ~1.45).
+// Origin: Lighthouse 2026-11-26
+// ---------------- Lighthouse (2026-11-26): keepers, a steamer captain, an 1890 engineer, pool kids + fx ----------------
+export const KEEPER_O: Outfit = { jacket: "#2f4f94", pants: "#2a3a66", boots: "#2a2026", hat: "cap", cap: "#2c3e72", buttons: "#e8b84a", beard: "#8a5e3c", moustache: "#8a5e3c", build: "stout" };
+export const CAPTAIN_O: Outfit = { jacket: "#2e4a7e", pants: "#2a3c66", boots: "#1a1418", hat: "cap", cap: "#24345a", buttons: "#e8b84a", beard: "#e6e2da", moustache: "#e6e2da" };
+export const ENGINEER_O: Outfit = { jacket: "#74364e", pants: "#4a4656", boots: "#1a1418", hat: "tophat", cap: "#6a5a84", moustache: "#7a5a44", beard: "#7a5a44", tie: "#b8282c" };
+export const SWIM_KID: Outfit = { jacket: "#f2c230", pants: "#e2453c", boots: "#faf7f3", hat: "hair", hair: "#5a3b2a", build: "kid" };
+export const FRIEND_O: Outfit = { jacket: "#3fb0e0", pants: "#f08a2c", boots: "#faf7f3", hat: "hair", hair: "#c9873a" };
+/** a big cast-iron clock weight (held overhead) on a 400 x 500 canvas */
+export const fxBigWeight = (p: Pen) => {
+  p.ell(200, 70, 34, 30, null, 9); p.ell(200, 70, 34, 30, null, 5);
+  p.g.strokeStyle = "#c9962e"; p.g.lineWidth = 12; p.g.beginPath(); p.g.ellipse(200, 70, 30, 26, 0, 0, 7); p.g.stroke();
+  const body: P2[] = [[60, 130], [340, 130], [350, 440], [50, 440]];
+  p.poly(body, "#3e4250", 10);
+  p.poly([[78, 150], [130, 150], [122, 420], [70, 420]], "#5c6272", 0);
+  p.poly([[290, 150], [325, 150], [332, 420], [300, 420]], "#2a2d38", 0);
+  p.ell(200, 130, 140, 26, "#565c6c", 9);
+  for (const x of [110, 200, 290]) p.dot(x, 300, 10, "#2a2d38");
+  p.poly(body, null, 10);
+};
+/** the lens's face (hallucination): k 0 closed .. 1 eyes open + a grin, on a 420 x 260 canvas (transparent) */
+export const fxLensFace = (p: Pen, k: number) => {
+  for (const x of [120, 300]) {
+    p.ell(x, 100, 62, 10 + 52 * k, "#ffffff", 9);
+    if (k > 0.3) { p.dot(x + 14, 110, 24 * k, INK); p.dot(x + 22, 98, 7 * k, "#ffffff"); }
+    p.stroke([[x - 60, 30 - 20 * k], [x + 50, 22 - 26 * k]], 11, INK);
+  }
+  if (k > 0.2) { p.poly([[90, 190], [330, 190], [300, 232], [120, 232]], "#7a1e2a", 9); p.poly([[110, 190], [310, 190], [302, 204], [118, 204]], "#ffffff", 0); }
+};
+/** a twisted chamois cloth with silver drips (k = drip phase) on a 300 x 420 canvas */
+export const fxCloth = (p: Pen, k: number) => {
+  p.poly([[70, 60], [230, 50], [250, 150], [190, 230], [160, 300], [130, 300], [110, 230], [50, 150]], "#e8d6a8", 9);
+  p.stroke([[90, 100], [200, 160]], 5, "#b89a68"); p.stroke([[120, 80], [170, 230]], 5, "#b89a68");
+  for (let i = 0; i < 3; i++) { const y = 320 + ((k * 3 + i) % 3) * 30; p.ell(145, y, 9, 12, "#e4e8f0", 4); p.dot(141, y - 4, 3, "#ffffff"); }
+};
+/** a silver glint (4-point star) on a 128 canvas */
+export const fxGlint = (p: Pen, k: number) => {
+  const s = 0.4 + 0.6 * k;
+  p.poly([[64, 64 - 56 * s], [72, 56], [64 + 56 * s, 64], [72, 72], [64, 64 + 56 * s], [56, 72], [64 - 56 * s, 64], [56, 56]], "#ffffff", 0);
+};
+/** a sweat drop on a 64 x 96 canvas */
+export const fxSweatDrop = (p: Pen) => { p.poly([[32, 8], [52, 56], [32, 88], [12, 56]], "#9fd8ff", 5); p.dot(26, 50, 6, "#ffffff"); };
+/** a frayed cable: a dark twisted rope with snapped wire strands splaying out mid-way (200 x 500 canvas) */
+export const fxFray = (p: Pen) => {
+  p.poly([[88, 0], [112, 0], [112, 200], [88, 200]], "#8a8478", 6); p.poly([[88, 300], [112, 300], [112, 500], [88, 500]], "#8a8478", 6);
+  for (let y = 10; y < 200; y += 26) p.stroke([[88, y], [112, y + 14]], 3, "#6a645a");
+  for (let y = 310; y < 500; y += 26) p.stroke([[88, y], [112, y + 14]], 3, "#6a645a");
+  p.poly([[94, 200], [106, 200], [106, 300], [94, 300]], "#3a3630", 5);
+  for (const [dx, dy, ex, ey] of [[-1, 210, -70, 236], [1, 220, 72, 250], [-1, 245, -60, 268], [1, 262, 66, 282], [-1, 280, -52, 300], [1, 238, 80, 226]]) p.stroke([[100 + dx * 6, dy], [100 + ex, ey]], 5, "#f2ead8");
+};

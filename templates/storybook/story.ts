@@ -7,6 +7,19 @@ export const FPS = 30;
 export const TOTAL = 90;
 export type V3 = [number, number, number];
 
+/** voice re-take (2026-11-26): when a re-generated line moves the later words by n frames, insert those frames into the
+ *  PICTURE instead of re-timing every key: [frame a, n] stretches picture frames a-36 .. a over a-36 .. a+n (a gentle
+ *  slow-down before a cut at a), and every later frame shows picture frame f - n. Captions / labels / audio stay in real
+ *  time (re-run captions.py; shift label frames after a by n). Bridge.tsx renders picFrame(f). */
+export const RETIME: [number, number][] = [];
+export const picFrame = (f: number) => {
+  let p = f;
+  for (const [a, n] of RETIME) {
+    if (f >= a + n) p -= n;
+    else if (f >= a - 36) p = a - 36 + ((f - (a - 36)) * 36) / (36 + n);
+  }
+  return p;
+};
 export const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 export const smooth = (x: number) => { const u = clamp01(x); return u * u * (3 - 2 * u); };
 export const easeOut = (u: number) => 1 - (1 - clamp01(u)) ** 4;
@@ -42,7 +55,7 @@ export const SUN_SHOT: Record<number, { az?: number; el?: number }> = {};
 // ---------------- camera ----------------
 export type Cam = { pos: V3; look: V3; fov: number; roll: number };
 type Shot = Partial<Cam> & { pos: V3; look: V3 };
-type Key = { f: number; dur?: number; cut?: boolean; s: (f: number) => Shot };
+type Key = { f: number; dur?: number; cut?: boolean; ease?: (u: number) => number; s: (f: number) => Shot };
 export const glide = (u: number) => { const x = clamp01(u); return x * x * x * (x * (6 * x - 15) + 10); };
 const mix = (a: Cam, b: Cam, k: number): Cam => ({
   pos: a.pos.map((v, i) => v + (b.pos[i] - v) * k) as V3, look: a.look.map((v, i) => v + (b.look[i] - v) * k) as V3,
@@ -54,7 +67,7 @@ const run = (keys: Key[], f: number) => {
   for (let i = 1; i < keys.length; i++) {
     const k = keys[i];
     if (f < k.f) break;
-    cur = k.cut ? full(k.s(f)) : mix(cur, full(k.s(f)), glide((f - k.f) / (k.dur ?? 24)));
+    cur = k.cut ? full(k.s(f)) : mix(cur, full(k.s(f)), (k.ease ?? glide)((f - k.f) / (k.dur ?? 24)));
   }
   return cur;
 };
@@ -147,9 +160,16 @@ const driftOf = (pos: V3, look: V3, f: number, f1: number, side: number) => {
 };
 /** a beat: framing reached by a compound move of `dur` frames (30-55) that lands 2 f before word time `at` (s), then a
  *  slow push + sideways drift until the next beat (side 0 = push only: use it when the lens must not drift into a prop) */
+/** ease of the beat moves: "quintic" (glide, peak 1.88x the mean speed) or "cubic" (smoothstep, peak 1.5x) or "trap" (trapezoid, peak 1.33x): use cubic / trap
+ *  when retention_stats says "camera move peak" > 18 px/f and the moves cannot get longer (Lighthouse 2026-11-26) */
+export const BEAT_EASE = "quintic" as "quintic" | "cubic" | "trap";
+/** trapezoid speed profile: accelerate over the first quarter, cruise, decelerate over the last quarter (peak 1.33x) */
+export const trapEase = (u: number, a = 0.25) => { const x = clamp01(u), k = 1 / (1 - a);
+  return x < a ? (k * x * x) / (2 * a) : x > 1 - a ? 1 - (k * (1 - x) * (1 - x)) / (2 * a) : k * (x - a / 2); };
+const beatEase = (u: number) => (BEAT_EASE === "cubic" ? smooth(u) : BEAT_EASE === "trap" ? trapEase(u) : glide(u));
 export const beat = (at: number, dur: number, pos: V3, look: V3, fov = 44, push = 0.0035, side?: number): Key => {
   const f1 = Math.round(at * FPS) - 2, sd = side ?? (DRIFT_SIGN = -DRIFT_SIGN);
-  return { f: f1 - dur, dur, s: (f) => { const q = driftOf(pos, look, f, f1, sd); return dolly(q.pos, q.look, pushK(f, f1, push), { fov }); } };
+  return { f: f1 - dur, dur, ease: beatEase, s: (f) => { const q = driftOf(pos, look, f, f1, sd); return dolly(q.pos, q.look, pushK(f, f1, push), { fov }); } };
 };
 /** the opening framing of a shot (after a cut), drifting from its first frame */
 export const open0 = (f0: number, pos: V3, look: V3, fov = 44, push = 0.0035, side?: number): Key => {

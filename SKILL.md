@@ -62,9 +62,60 @@ User rules that apply (details in the step named):
 - Never test-render a template: the first render of a new short is a still of its OWN shots. A setup smoke test uses
   a throwaway scene (one box in a ThreeCanvas).
 
+## Run a short in phases: small contexts (usage rule 2026-11-26; read before step 1)
+**Why:** the lighthouse short ran as ONE conversation: 257 steps, context grown to 723k tokens, 126M tokens re-read =
+78 % of its cost, ~80 % of the user's plan for one video. The sub-agents (verifier, research) were only ~6 %. Every
+step re-reads the whole conversation, so cost ~ steps x context size. Images, command output and the agent's own code
+and reasoning all stay in the context until it ends. **Target: one short <= ~25 % of the plan, quality unchanged.**
+
+**The conductor** is the conversation the user talks to. It stays small: it never reads templates or code, never views
+an image, never writes code, never waits on a render. It does only this:
+1. Pick `<name>`, `mkdir -p "$STUDIO/<name>"`, write `$STUDIO/<name>/STATE.md` from `templates/STATE_example.md` with the
+   user's idea word for word.
+2. Run the four phases below IN ORDER, each as a fresh sub-agent (general-purpose, the conductor's own model: quality
+   first), with the phase brief below. Wait for it; read only its <= 150-word reply.
+3. If a phase reports a blocker that needs the user, ask the user; otherwise go straight on (the user does not approve
+   scripts). After phase D, tell the user what is in `$SHORTS_LIBRARY/<name>/` and the one-line QA result.
+An agent with NO sub-agent tool: do one phase, update STATE.md, then tell the user to open a NEW conversation and say
+"continue the <name> short" (that conversation reads STATE.md and does the next phase). Never run two phases in one
+context.
+
+| phase | SKILL.md steps | needs | leaves behind |
+|---|---|---|---|
+| **A Story + voice** | 1, 2, 2b, 2c, 3, 3b | the idea | SCRIPT.md (sourced facts, hook drafts, script, ledger, reveal plan, sync table drafted from words.json), lines.json, voice.wav, words.json, captions_data.ts + captions.srt |
+| **B Build** | 4, 4b, 4c, 5, 6, 7 | SCRIPT.md, words.json | `src/videos/<name>/` with story / sets / cast / labels, Root.tsx registered, `tsc` clean, band pass `CAPTION BAND: clear` |
+| **C Look** | 9 (incl. Look v3 gate, verifier rounds, motion / 2K close-up / continuity checks) | the build | all fixes applied, a final verifier PASS written in STATE.md |
+| **D Sound + finish** | 8, 10, 11, 12, 13 | the locked picture | mix, final.mp4, QA + retention + look gate on the final, thumbnails, POST.md, delivery into `$SHORTS_LIBRARY/<name>/`, lessons written into this skill |
+
+**Phase brief** (the conductor sends exactly this, filled in):
+> Phase <X> of the cartoon short `<name>`. Start every command with
+> `. "$HOME/.claude/skills/cartoon-3d-short/env.sh" && cd "$STUDIO"`. Read `$STUDIO/<name>/STATE.md` first. Then read ONLY
+> these parts of `$SKILL_DIR/SKILL.md`: the "Folders" and "Inside a phase" sections and steps <list>, e.g.
+> `awk '/^4\. \*\*/,/^8\. \*\*/' "$SKILL_DIR/SKILL.md"` (and "Gotchas" / "Readability traps" only by grep for your
+> topic). Do the phase completely and carefully: quality over speed. Before you end, rewrite STATE.md (status, decisions,
+> files, open issues, next). Reply in <= 150 words: done or blocked, key numbers, anything the user must decide.
+
+### Inside a phase (keep each phase's own context small too)
+- **Read ranges, not files.** SKILL.md by step range (awk), templates by `grep -n` + `sed -n a,bp`; library parts by their
+  header only (`head -6`), appended with `cat >>`. Never `cat` a whole template, CHARACTERS.md or LIBRARY.md: grep it.
+- **Trim every command's output:** `| tail -20`, `--quiet`, `> log 2>&1; tail -5 log`. A command that prints 300 lines
+  costs those lines in every later step.
+- **Batch work into script files:** one Python patch script that makes ten edits beats ten Edit calls; one shell line
+  that renders + sheets + checks beats three calls. Fewer steps is the biggest saving after small contexts.
+- **Images: one contact sheet, not single stills.** View at most ~8 images in a phase (sheets from `sheet.py`, a
+  2K face crop). The verifier sub-agent looks at sheets in ITS context; the phase reads its text verdict. Never view the
+  thumbnail more than once (thumb_check.jpg shows all crops).
+- **Write code once:** plan the shot table in SCRIPT.md first, then write story.ts / sets / cast in one pass each; reuse
+  library parts instead of writing sets.
+- **Long renders:** start in the background with a log and wait with
+  `python scripts/waitpid.py <pid> 580 <log>` (repeat while it exits 3). Never poll by reading the log, never leave a
+  phase waiting on a render it cannot see finish.
+- **Verifier:** Opus, fresh sub-agent per round, sheets only, <= 200-word verdict, at most 2 rounds + 1 self-checked
+  mini-batch (step 9).
+
 ## Fast start (read first: keeps a short to ~1/3 of the usage the La Llorona short took)
-- **One short per session.** Start every new short in a fresh conversation; never stack a second short onto a long one
-  (every step re-reads the whole conversation, so a long session makes each later step several times more expensive).
+- **One short per conversation, in four phase contexts** ("Run a short in phases" above). Never stack a second short
+  onto a long conversation, and never run a whole short in one context (lighthouse: ~80 % of the plan).
 - **Ready project: `$STUDIO` (= `<skill>/studio`)** (Remotion entry `src/index.ts`, `src/Root.tsx`). Do not scaffold or
   `npm install` by hand; if `studio/node_modules` exists, go; if not, run `setup.sh` (it pins these). Working versions: react/react-dom 18.3, @react-three/fiber 8.18,
   @react-three/postprocessing 2.19, postprocessing 6.39, three 0.170, remotion + @remotion/{cli,bundler,renderer,three}
@@ -851,6 +902,45 @@ pixel for pixel). Every new short starts from these rules; none of them is optio
   9 m/s): make it flee ACROSS the view (side run cycles, dust), pause, then react; keep the herders inside the lens cone.
   Medals / badges on a chest: ~1.2 m up (upper chest, wearer's left = screen right on a front view), only ~0.08 m in front
   of the body card; 1.27 m + 0.17 m toward the lens put them on the collar in close-ups.
+- (Lighthouse, 2026-11-26) **Portrait + a big hero prop:** a 1.8 m lens fills the whole 1080 width at 3 m (horizontal FOV ~0.56 x fov). Size
+  interiors so the lens can stand 3+ m back (lantern apothem 3.3 m), scale the prop (lens + pedestal x0.85), and frame
+  the hero NEXT to it (keeper 1/3, lens 2/3), not both centred. A first-pass sheet with every shot too tight cost a round.
+- (Lighthouse) **`inkHull(m)` copies m's LOCAL transform:** add the hull to the SAME parent as the mesh. A cottage-roof hull
+  added to the scene root floated into another place (at the origin) and inked a black band across every lantern shot.
+  The same for anything MOVED per frame: put mesh + hull in one Group and move the group (the pool raft glided away and
+  left its outline behind; the user caught it).
+  Debug a mystery dark area with `PROPS post:{ink:false,lens:false,pre:false,mblur:false,bloom:false,grade:false}` (is it in
+  the raw render?) and a Raycaster from `cam` in the set's `update` hook (log hit types / parents; matrixWorld may be stale).
+  Never stack two shells a few cm apart (inner + outer roof): one DoubleSide shell.
+- (Lighthouse) **`pushK` pushes toward the LOOK point by a fraction of its distance:** with a look target 25 m away (the
+  lighthouse) a 0.003/f push dollies the lens metres forward and straight past the captain it was framing. For beats that
+  look far away use push <= 0.0003 (or a near look point). Moving subjects (a ship, a raft) read static when the camera
+  tracks them: let them pass a FIXED camera, or follow at ~55 % of their speed.
+- (Lighthouse) **Voice re-take after the picture is timed:** re-generate only the changed entry, try 2-3 `"seed"`s and keep
+  the take whose length and pause count match; if later words shift by n frames, set `RETIME = [[cutFrame, n]]` in
+  story.ts (core: Bridge renders `picFrame(f)`): n frames are inserted at the cut, captions / labels / audio stay in real
+  time (re-run captions.py, shift labels after the cut, write audio timeline.py in real time).
+- (Lighthouse) **Payoff position with a twist after it:** a post-payoff twist (here mercury poisoning) pushes the payoff
+  early (58 %). Fix with delivery, not cuts: story entries before the payoff at tempo 1.12, the tail at 1.22, and trim
+  tail words; it reached 62 %.
+- (Lighthouse) **Camera numbers:** measure on the grain-free proxy WITH the mix muxed in (`ffmpeg -i camproxy.mp4 -i mix.wav
+  -map 0:v:0 -map 1:a:0`; a silent proxy crashes retention_stats). "move peak" > 18 px/f: lengthen every beat into the
+  gap since the previous landing (<= 80 f, a script over CAMS) and set `BEAT_EASE = "cubic"` (story.ts; peak 1.5x the mean
+  instead of quintic 1.88x). Lighthouse: quintic 24.2 -> cubic 18.5 px/f; "trap" (trapezoid) measured WORSE (19.7):
+  camstats peaks come from the cruise phase. The between-beat push adds to every peak: keep it ~0.0025. "moving %" / "median speed" low: push 0.003-0.0035 between beats.
+- (Lighthouse) **Look gate `dark`:** navy uniforms, black top hats and frock coats under night light push `dark` over .08.
+  Use mid blues (#2f4f94), a coloured top hat (`tophat` now takes `cap`), lighter beards, brighter interior lamps.
+- (Lighthouse) **A reveal without a cut:** the pedestal swaps from wheels to the mercury cutaway under a puff (fxPuff) while
+  the camera moves from the wheels down into the cutaway: one continuous move instead of a dissolve (saved one of the
+  6/min cuts). Name / fact labels must END before the camera moves off their subject, and sit above hats, never on a face.
+- (Lighthouse, the user caught both after delivery) **Bearded faces must face the lens:** at a 3/4 turn the eyes and mouth
+  slide sideways but the big beard shape does not, so the face reads lopsided ("the facial features look 3D"). Core
+  cast.ts `front()` now limits bearded characters to 8 deg of turn (back views excepted); also avoid `tilt` leans on
+  them. **Flat signs on a curved wall** (tower shaft, round room) sink into it at the edges: place a w-wide card at
+  radius r - (w/2)^2/(2r) - 0.05 m, not on the wall radius.
+- (Lighthouse) Fact precision: "iron wheels" was not in any source (chariot wheels were bronze, later hardened steel), so
+  the line was re-voiced as "steel wheels". Search the exact noun + adjective the script says, not just the topic.
+
 ## Readability traps the verifier caught (check every new prop/shot for these)
 - **The story's key object must be clearly visible in every shot that is about it** (Sisyphus shipped with the boulder
   he pushes not visible). Give every verifier brief a list of "must see" objects per shot and ask it to confirm each.

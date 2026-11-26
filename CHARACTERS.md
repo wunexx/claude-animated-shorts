@@ -27,7 +27,7 @@ crest on the chest, colour) - `build`: `adult` | `stout` | `kid` - `head` (head-
 
 ## Hats (`hat`)
 `hair` (short hair cap, colour `hair`) - `cap` (peaked cap, colour `cap`) - `braids` - `hairband` - `longhair` -
-`bonnet` - `tophat` - `sombrero` - `chef` - `shako` / `shako_tall` (soldiers) - `topknot` (Japanese chonmage) -
+`bonnet` - `tophat` (felt colour = `cap`, default near-black #2e2a36: give a hero a lighter cap colour, a black top hat is a big dark blob in close-ups; Lighthouse 2026-11-26) - `sombrero` - `chef` - `shako` / `shako_tall` (soldiers) - `topknot` (Japanese chonmage) -
 `jhair` (hair tied up in a bun + comb in `cap`) - `kabuto` (samurai helmet, gold crescent, neck guard; bowl colour
 `cap`) - `kasa` (wide conical straw hat; paint it dark via `cap` for an ashigaru jingasa) - `cavalier` (1620s wide-brim felt hat
 with a gold band and a white/red feather; felt colour `cap`, hair `hair`; Vasa 2026-11-19) - `bicorne` (Napoleonic bicorne worn
@@ -84,6 +84,7 @@ deg) - `headTilt` (deg) - `wave` (0..1: right arm raised and waving; also "reach
 - `["fan", k]` (fanning), `["cloth", k]` (scrubbing rag, k = rub position)
 - `"lift"` (both hands above the head: put the lifted fx card ~0.2 m above the hands, not floating)
 - `"shrug"` (both palms out at the sides)
+- `"point"` (right arm straight out to the side with an index finger: pushing a button / a lens with one finger, pointing at something; turned toward screen-left the card mirrors, so the finger points the way the character faces. Lighthouse 2026-11-26)
 - `"hold"` (both hands together in front of the chest, ~1.1 m up at scale 1: put the held object as its own fx card
   at [x, 1.1, z + 0.12]; a dish, flask, journal, syringe. Penicillin 2026-11-19). An object held HIGH: `wave: 1` + the card
   ~0.32 m right of the body at y ~1.64 (the lift pose hides the arms behind the head)

@@ -648,7 +648,7 @@ const hatOn = (p: Pen, o: Outfit, hp: P2[], H: Blob, cx: number, hc: number, lig
     p.shadedFill(band, col, mul(col, SH_CLOTH), light, 0.36 * W, 0.4);
     p.poly(band, null, ow);
   } else if (o.hat === "tophat") {
-    const yb = crown + 0.22 * HH, ht = 0.8 * HH, wb = 0.31 * W, wt = 0.33 * W, col = "#2e2a36";
+    const yb = crown + 0.22 * HH, ht = 0.8 * HH, wb = 0.31 * W, wt = 0.33 * W, col = o.cap ?? "#2e2a36"; // tophat colour = cap (Lighthouse 2026-11-26)
     const body = R([...sag(yb, wb).reverse(), [cx - wt, yb - ht], [cx + wt, yb - ht]]);
     p.shadedFill(body, col, mul(col, SH_FELT), light, wt, 0.4);
     p.clip(body, () => p.band(R([[cx - wt - 4 * u, yb - 0.13 * HH], [cx + wt + 4 * u, yb - 0.13 * HH]]), shade(o.jacket, 0.9), 0.14 * HH, 0.8 * u));
@@ -677,7 +677,7 @@ const hatOn = (p: Pen, o: Outfit, hp: P2[], H: Blob, cx: number, hc: number, lig
 // ---------------- bodies ----------------
 export type Arms = [P2[], P2[]];
 /** held prop; for the hammer the number is the strike 0 (raised) .. 1 (struck) */
-export type Prop = null | "hold" | "icecream" | "icecream_drip" | "cone" | "shako" | "lift" | "shrug" | "clipboard" | "book" | ["bolt", number] | ["hammer", number] | ["fan", number] | ["katana", number] | ["cloth", number] | ["axe", number] | ["whip", number] | "drumstick" | "wheat" | "coinbag" | "scroll";
+export type Prop = null | "hold" | "point" | "icecream" | "icecream_drip" | "cone" | "shako" | "lift" | "shrug" | "clipboard" | "book" | ["bolt", number] | ["hammer", number] | ["fan", number] | ["katana", number] | ["cloth", number] | ["axe", number] | ["whip", number] | "drumstick" | "wheat" | "coinbag" | "scroll";
 
 const BUILD: Record<Build, { a: number; torso: number; legs: number; tw: number }> = {
   adult: { a: 134, torso: 1.02, legs: 0.98, tw: 0.8 },
@@ -840,6 +840,9 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
     } else if (prop === "icecream" || prop === "icecream_drip" || prop === "cone" || prop === "book" || prop === "wheat" || prop === "coinbag" || prop === "scroll") {
       const S = sh(1);
       arms.push({ pts: [S, [tcx + 1.1 * T.a + 8 * u, S[1] + 0.3 * HH], [tcx + 0.62 * T.a, S[1] - 0.02 * HH]], front: true });
+    } else if (prop === "point") { // right arm out to the side, index finger extended (pushing / pointing; Lighthouse 2026-11-26)
+      const S = sh(1);
+      arms.push({ pts: [S, [tcx + 1.25 * T.a + 18 * u, S[1] + 0.16 * HH], [tcx + 1.5 * T.a + 46 * u, S[1] + 0.06 * HH]], front: true });
     } else if (Array.isArray(prop) && prop[0] === "fan") {
       const S = sh(1), k = clamp(prop[1], 0, 1);
       arms.push({ pts: [S, [tcx + 1.15 * T.a + 8 * u, S[1] + 0.18 * HH], [tcx + 0.9 * T.a + 4 * u + 8 * u * k, S[1] - 0.22 * HH]], front: true });
@@ -946,6 +949,7 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
     drawArm(a);
     if (!propArm.has(a)) continue; // a near arm turned to the front holds nothing
     const [hx, hy] = a.pts[2];
+    if (prop === "point") { const dx = Math.sign(hx - a.pts[0][0]) || 1; p.stroke([[hx, hy - 1 * u], [hx + dx * 16 * u, hy - 3 * u]], 3.4 * u, INK); }
     if (prop === "clipboard" || prop === "book") {
       if (prop === "clipboard") {
         const u0 = u, hxo = hx; { const u = u0 * 1.4, hx = hxo + 28 * u;

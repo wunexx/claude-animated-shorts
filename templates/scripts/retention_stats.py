@@ -266,7 +266,8 @@ def main():
         med, short = float(np.median(holds)), int((holds < 1.2).sum())
         row("beat spacing (CAMS keys)", f"median {med:.2f} s, {short} under 1.2 s ({len(holds)} keys)", med >= 2.0 and short <= 3, "median >= 2.0 s, <= 3 under 1.2 s (refs: a big move every ~2.1-2.9 s)")
     if a.labels:
-        n = len(re.findall(r"kind:", open(a.labels, encoding="utf-8").read()))
+        src = re.sub(r"//[^\n]*", "", open(a.labels, encoding="utf-8").read())  # commented example lines are not cards (Rat Tails / Lighthouse)
+        n = len(re.findall(r"kind:", src))
         row("label cards", f"{n}", n <= 3, "<= 3 (refs 0; prefer in-world signs)")
     if a.payoff:
         toks = [t.lower().strip(",.!?;:'\"") for t in a.payoff.split()]
