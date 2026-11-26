@@ -1,0 +1,138 @@
+// LIBRARY PART: Atlas short effect drawings: fxSkyBall(kind earth|sky|marble|stone) [600] celestial/earth globe, fxRedX [600],
+// fxAppleTree(n) [600x900] golden-apple tree, fxBasket(n) [400x300], fxClub [200x700], fxCushion [400x260], fxEmptyPurse [400] (moth),
+// fxWallClock(k) [400], fxLadder [300x600] (missing rungs), fxSpark [128], fxXray(hi, skull) [600x1000] head+neck X-ray, C1 glows.
+// Append to toon.ts. Outfit fields tie/badge/stone are in the core. Outfits ATLAS/HERC/ZEUS/titan(v): see src/videos/atlas/cast.ts.
+// Origin: Atlas (2026-11-18)
+// ---------------- Atlas short: effect drawings ----------------
+/** the sky ball [600]: kind "earth" (blue ocean, green land: the popular image), "sky" (celestial globe: deep blue,
+ *  stars, constellation lines, gold zodiac band), "marble" (the Farnese statue's carved globe), "stone" (grey) */
+export const fxSkyBall = (p: Pen, kind: "earth" | "sky" | "marble" | "stone") => {
+  const g = p.g, R = 280, C = 300;
+  const base = kind === "earth" ? ["#5fb2f0", "#2a63b8"] : kind === "sky" ? ["#3a4fb8", "#121a5a"] : kind === "marble" ? ["#f4efe4", "#b8b0a2"] : ["#a8a4ae", "#5e5a68"];
+  const gr = g.createRadialGradient(C - 90, C - 100, 30, C, C, R);
+  gr.addColorStop(0, base[0]); gr.addColorStop(1, base[1]);
+  g.save(); g.beginPath(); g.arc(C, C, R, 0, Math.PI * 2); g.fillStyle = gr; g.fill(); g.clip();
+  if (kind === "earth") {
+    const land = (pts: [number, number][]) => p.poly(pts.map(([x, y]) => [C + x, C + y] as [number, number]), "#6cc062", 0);
+    land([[-200, -150], [-120, -190], [-60, -150], [-80, -60], [-150, -20], [-200, -60]]);
+    land([[-110, 10], [-50, 30], [-60, 120], [-110, 210], [-140, 120]]);
+    land([[30, -200], [140, -170], [200, -90], [130, -60], [60, -90], [20, -140]]);
+    land([[60, -30], [150, -10], [170, 80], [100, 170], [50, 90]]);
+    land([[180, 120], [240, 140], [220, 200], [170, 180]]);
+    g.fillStyle = "rgba(255,255,255,0.85)"; g.fillRect(0, 0, 600, 46); g.fillRect(0, 556, 600, 44);
+  } else {
+    const line = kind === "sky" ? "rgba(190,210,255,0.75)" : kind === "marble" ? "rgba(120,110,96,0.7)" : "rgba(60,56,70,0.6)";
+    const star = kind === "sky" ? "#fff6c8" : kind === "marble" ? "#8a8070" : "#4a4652";
+    // the zodiac band and two rings, like a celestial globe
+    g.strokeStyle = kind === "sky" ? "#e8c45a" : line; g.lineWidth = 14;
+    g.beginPath(); g.ellipse(C, C, R + 10, 90, -0.42, 0, Math.PI * 2); g.stroke();
+    g.lineWidth = 4; g.strokeStyle = line;
+    g.beginPath(); g.ellipse(C, C, 110, R + 10, 0, 0, Math.PI * 2); g.stroke();
+    g.beginPath(); g.ellipse(C, C, R + 10, 40, 0, 0, Math.PI * 2); g.stroke();
+    const cons: [number, number][][] = [
+      [[-190, -130], [-140, -170], [-90, -150], [-70, -190], [-20, -200]],      // a dipper
+      [[60, -170], [110, -120], [170, -140], [150, -70], [100, -60]],             // a kite
+      [[-170, 60], [-120, 30], [-70, 70], [-110, 120], [-60, 160]],               // a hunter's belt line
+      [[40, 80], [90, 50], [140, 90], [190, 60], [210, 130], [130, 170]],         // a long tail
+      [[-40, -60], [10, -30], [-20, 20]],
+    ];
+    for (const c of cons) {
+      g.strokeStyle = line; g.lineWidth = 3.5; g.beginPath();
+      c.forEach(([x, y], k) => (k ? g.lineTo(C + x, C + y) : g.moveTo(C + x, C + y))); g.stroke();
+      for (const [x, y] of c) { g.fillStyle = star; g.beginPath(); g.arc(C + x, C + y, 9, 0, Math.PI * 2); g.fill(); }
+    }
+    if (kind === "sky") { const r = (k: number) => { const v = Math.sin(k * 91.7) * 43758.5; return v - Math.floor(v); };
+      for (let k = 0; k < 70; k++) { g.fillStyle = "rgba(255,250,220,0.85)"; g.beginPath(); g.arc(40 + r(k) * 520, 40 + r(k + 99) * 520, 2 + 3 * r(k + 7), 0, Math.PI * 2); g.fill(); } }
+  }
+  // shading crescent toward bottom right
+  const sh = g.createRadialGradient(C - 120, C - 130, R * 0.6, C - 40, C - 40, R * 1.35);
+  sh.addColorStop(0, "rgba(20,10,40,0)"); sh.addColorStop(1, "rgba(20,10,40,0.5)");
+  g.fillStyle = sh; g.fillRect(0, 0, 600, 600);
+  g.fillStyle = "rgba(255,255,255,0.35)"; g.beginPath(); g.ellipse(C - 110, C - 140, 70, 34, -0.6, 0, Math.PI * 2); g.fill();
+  g.restore();
+  g.lineWidth = 12; g.strokeStyle = INK; g.beginPath(); g.arc(C, C, R, 0, Math.PI * 2); g.stroke();
+};
+/** a big red X stamp [600] */
+export const fxRedX = (p: Pen) => {
+  p.band([[90, 90], [510, 510]], "#e23b3b", 70, 10, "round");
+  p.band([[510, 90], [90, 510]], "#e23b3b", 70, 10, "round");
+};
+/** the golden-apple tree of the Hesperides [600x900] (n apples still hanging, 0..6) */
+export const fxAppleTree = (p: Pen, n = 6) => {
+  p.poly([[270, 900], [255, 620], [215, 520], [250, 515], [290, 590], [330, 500], [360, 510], [320, 620], [330, 900]], "#7a5030", 7);
+  const leaf = (x: number, y: number, rx: number, ry: number, c: string) => p.ell(x, y, rx, ry, c, 7);
+  leaf(300, 330, 260, 200, "#3f8f4a"); leaf(170, 430, 130, 110, "#4fa056"); leaf(430, 420, 140, 110, "#4fa056"); leaf(300, 200, 170, 130, "#5cb062");
+  const AP: [number, number][] = [[200, 420], [320, 300], [420, 380], [260, 210], [380, 250], [150, 330]];
+  AP.slice(0, n).forEach(([x, y]) => { p.ell(x, y, 30, 28, "#f2c230", 5); p.ell(x - 9, y - 9, 8, 6, "#fff2b0", 0); p.stroke([[x, y - 26], [x + 6, y - 42]], 5, "#5a3a20"); });
+};
+/** three golden apples in a little wicker basket [400x300] */
+export const fxBasket = (p: Pen, n = 3) => {
+  const AP: [number, number][] = [[140, 120], [205, 105], [270, 122]];
+  AP.slice(0, n).forEach(([x, y]) => { p.ell(x, y, 46, 44, "#f2c230", 6); p.ell(x - 14, y - 14, 12, 9, "#fff2b0", 0); p.stroke([[x, y - 40], [x + 8, y - 62]], 6, "#5a3a20"); });
+  p.poly([[60, 140], [340, 140], [300, 285], [100, 285]], "#c08a4a", 7);
+  for (let k = 0; k < 4; k++) p.stroke([[72 + k * 6, 172 + k * 30], [328 - k * 6, 172 + k * 30]], 4, "#8a5a2c");
+};
+/** Heracles' club [200x700] */
+export const fxClub = (p: Pen) => {
+  p.poly([[85, 690], [115, 690], [150, 200], [170, 60], [100, 20], [40, 70], [55, 200]], "#9a6a3c", 8);
+  for (const [x, y] of [[80, 140], [130, 230], [70, 300], [120, 380]] as const) p.ell(x, y, 12, 8, "#6a4424", 4);
+};
+/** a puffy cushion [400x260] */
+export const fxCushion = (p: Pen) => {
+  p.poly([[40, 70], [200, 40], [360, 70], [380, 190], [200, 220], [20, 190]], "#e0505a", 8);
+  p.stroke([[60, 130], [340, 130]], 4, "#b03440");
+  for (const [x, y] of [[40, 70], [360, 70], [380, 190], [20, 190]] as const) p.ell(x, y, 18, 18, "#f2c230", 5);
+};
+/** empty coin purse with a moth [400] */
+export const fxEmptyPurse = (p: Pen) => {
+  p.poly([[100, 160], [300, 160], [340, 340], [200, 380], [60, 340]], "#a8743c", 8);
+  p.ell(200, 160, 110, 28, "#3a2416", 6);
+  p.stroke([[130, 150], [160, 110], [200, 140], [240, 105], [270, 150]], 6, "#e8c45a");
+  p.ell(250, 70, 40, 22, "#d8d0c0", 5, 0, 360, -20); p.ell(205, 82, 40, 22, "#d8d0c0", 5, 0, 360, 20); p.ell(228, 78, 10, 22, "#6a5a4a", 4);
+};
+/** a wall clock with the hands at angle k (deg) [400] */
+export const fxWallClock = (p: Pen, k: number) => {
+  p.ell(200, 200, 170, 170, "#f6f2e6", 12); p.ell(200, 200, 150, 150, "#f6f2e6", 3);
+  for (let i = 0; i < 12; i++) { const a = (i * Math.PI) / 6; p.stroke([[200 + 125 * Math.sin(a), 200 - 125 * Math.cos(a)], [200 + 142 * Math.sin(a), 200 - 142 * Math.cos(a)]], 8, INK); }
+  const h = (k * Math.PI) / 180;
+  p.stroke([[200, 200], [200 + 80 * Math.sin(h / 12), 200 - 80 * Math.cos(h / 12)]], 14, INK);
+  p.stroke([[200, 200], [200 + 120 * Math.sin(h), 200 - 120 * Math.cos(h)]], 8, "#c0353a");
+  p.dot(200, 200, 14, INK);
+};
+/** a ladder whose upper rungs are missing [300x600] */
+export const fxLadder = (p: Pen) => {
+  p.band([[70, 590], [90, 20]], "#b07a40", 22, 6, "round");
+  p.band([[230, 590], [210, 20]], "#b07a40", 22, 6, "round");
+  for (let k = 0; k < 3; k++) p.band([[80, 540 - k * 100], [222, 540 - k * 100]], "#c8925a", 18, 5, "round");
+  p.stroke([[150, 120], [150, 200]], 10, "#c0353a"); p.dot(150, 240, 9, "#c0353a"); // a "!" where the top rungs should be
+};
+/** a little sparkle [128] */
+export const fxSpark = (p: Pen) => {
+  p.poly([[64, 4], [76, 52], [124, 64], [76, 76], [64, 124], [52, 76], [4, 64], [52, 52]], "#fff6b0", 4);
+};
+/** a lightbox X-ray of a head and neck [600x1000]; hi = glow on the top vertebra (C1) 0..1; skull drawn when skull */
+export const fxXray = (p: Pen, hi: number, skull = true) => {
+  const g = p.g;
+  p.poly([[20, 20], [580, 20], [580, 980], [20, 980]], "#16304a", 10);
+  const gr = g.createRadialGradient(300, 450, 40, 300, 500, 520); gr.addColorStop(0, "rgba(110,170,230,0.55)"); gr.addColorStop(1, "rgba(40,80,130,0.1)");
+  g.fillStyle = gr; g.fillRect(30, 30, 540, 940);
+  const B = "rgba(230,242,255,0.9)", BI = "#9fc4e8";
+  // soft-tissue outline of head + neck
+  g.strokeStyle = "rgba(170,205,240,0.35)"; g.lineWidth = 10;
+  g.beginPath(); g.ellipse(300, 300, 190, 220, 0, Math.PI * 0.85, Math.PI * 2.15); g.stroke();
+  g.beginPath(); g.moveTo(190, 470); g.lineTo(200, 980); g.moveTo(410, 470); g.lineTo(400, 980); g.stroke();
+  if (skull) {
+    p.ell(300, 290, 165, 190, B, 6);
+    p.ell(240, 300, 40, 44, "#16304a", 4); p.ell(360, 300, 40, 44, "#16304a", 4);
+    p.poly([[300, 330], [280, 380], [320, 380]], "#16304a", 4);
+    p.poly([[200, 420], [400, 420], [380, 500], [220, 500]], B, 6); // jaw
+    for (let k = 0; k < 6; k++) p.stroke([[235 + k * 26, 425], [235 + k * 26, 455]], 4, BI);
+  }
+  // vertebrae C1 (atlas) .. C7
+  for (let k = 0; k < 7; k++) {
+    const y = 590 + k * 56, w = k === 0 ? 120 : 82 + k * 3;
+    const c = k === 0 && hi > 0 ? mix("#e6f2ff", "#ffd84a", hi) : B;
+    p.poly([[300 - w, y], [300 + w, y], [300 + w * 0.8, y + 38], [300 - w * 0.8, y + 38]], c, 6);
+    if (k === 0 && hi > 0.01) { g.fillStyle = `rgba(255,216,74,${0.35 * hi})`; g.beginPath(); g.ellipse(300, y + 19, w + 60, 70, 0, 0, Math.PI * 2); g.fill(); }
+  }
+};

@@ -1,0 +1,69 @@
+// LIBRARY PART: 1917 British navy cast + dazzle fx: painterO(v) dock painters, WILK_O navy lieutenant, offNavy(v) stout officers (moustache), KING_O (beard, Garter-blue sash); fxSketch (striped ship design on paper), fxArrow(col, dashed) heading / guess arrows, fxAim (red aim ring), fxDash (dashed aim line, lay flat), fxWake (torpedo foam streak, lay flat), fxQ (question mark), fxSpeed (speed lines).
+// Append to toon.ts. Flat cards on water: rot = atan2(-dx,-dz) for the canvas top along (dx,dz); rot = atan2(-dz,dx) for the canvas right (Dazzle cast.ts flatUp / flatRight).
+// Needs: core Pen, rrect, SKINS, INK.
+// Origin: Dazzle (Zebra Warships) 2026-11-22
+// ---------------- DAZZLE SHIPS cast + effect drawings (2026-11-22) ----------------
+export const painterO = (v: number): Outfit => ({ jacket: v ? "#ddd4bf" : "#e9e3d4", pants: v ? "#cfc5ad" : "#dcd3bf", boots: "#3a2a20", hat: "hair", hair: v ? "#3a2a20" : "#7a4a2a", skin: SKINS[v ? 1 : 0] }); export const painterO = (v: number): Outfit => ({ jacket: v ? "#ddd4bf" : "#e9e3d4", pants: v ? "#cfc5ad" : "#dcd3bf", boots: "#3a2a20", hat: "cap", cap: v ? "#5b6470" : "#7a5a3a", skin: SKINS[v ? 1 : 0] });export const painterO = (v: number): Outfit => ({ jacket: v ? "#ddd4bf" : "#e9e3d4", pants: v ? "#cfc5ad" : "#dcd3bf", boots: "#3a2a20", hat: "cap", cap: v ? "#5b6470" : "#7a5a3a", skin: SKINS[v ? 1 : 0] }); hair, not a cap: a cap peak in 3export const painterO = (v: number): Outfit => ({ jacket: v ? "#ddd4bf" : "#e9e3d4", pants: v ? "#cfc5ad" : "#dcd3bf", boots: "#3a2a20", hat: "cap", cap: v ? "#5b6470" : "#7a5a3a", skin: SKINS[v ? 1 : 0] });4 sits over the far eye
+export const WILK_O: Outfit = { jacket: "#1d2747", pants: "#1d2747", boots: "#16141a", hat: "cap", cap: "#1d2747", buttons: "#e8c24a", hair: "#4a3424" };
+export const offNavy = (v: number): Outfit => ({ jacket: "#1a2340", pants: "#1a2340", boots: "#16141a", hat: "cap", cap: "#1a2340", buttons: "#e8c24a", moustache: v ? "#dcd8d0" : "#6b4a32", build: "stout", skin: SKINS[v ? 2 : 1] });
+export const KING_O: Outfit = { jacket: "#18213d", pants: "#18213d", boots: "#16141a", hat: "cap", cap: "#18213d", buttons: "#e8c24a", beard: "#7a5c42", moustache: "#7a5c42", sash: "#2f63b8" };
+
+const dzBands = (g: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, seed: number) => {
+  let s = seed; const r = () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
+  const cols = ["#15171c", "#25375f", "#6f8fb8", "#15171c"];
+  let x = x0 - h, i = 0;
+  while (x < x0 + w + h) {
+    const bw = h * (0.25 + r() * 0.35), sk = h * (r() < 0.5 ? 0.6 : -0.5);
+    g.fillStyle = cols[i++ % 4]; g.beginPath(); g.moveTo(x, y0); g.lineTo(x + bw, y0); g.lineTo(x + bw + sk, y0 + h); g.lineTo(x + sk, y0 + h); g.closePath(); g.fill();
+    x += bw * (1.6 + r() * 0.8);
+  }
+};
+/** Wilkinson's sketch [600x420]: a ship side view in clashing stripes on cream paper with pencil notes */
+export const fxSketch = (p: Pen) => {
+  const g = p.g;
+  p.poly(rrect(10, 10, 590, 410, 18), "#f4ecd6", 10);
+  g.save(); g.beginPath(); // hull + deck house outline as the clip
+  g.moveTo(60, 230); g.lineTo(540, 230); g.lineTo(505, 320); g.lineTo(95, 320); g.closePath();
+  g.rect(230, 170, 150, 60); g.rect(268, 110, 34, 60); g.clip();
+  g.fillStyle = "#eef0ea"; g.fillRect(0, 0, 600, 420); dzBands(g, 40, 100, 520, 230, 77); g.restore();
+  g.strokeStyle = INK; g.lineWidth = 7; g.lineJoin = "round";
+  g.beginPath(); g.moveTo(60, 230); g.lineTo(540, 230); g.lineTo(505, 320); g.lineTo(95, 320); g.closePath(); g.stroke();
+  g.strokeRect(230, 170, 150, 60); g.strokeRect(268, 110, 34, 60);
+  g.lineWidth = 4; g.beginPath(); g.moveTo(150, 230); g.lineTo(150, 80); g.moveTo(460, 230); g.lineTo(460, 80); g.stroke(); // masts
+  g.strokeStyle = "#4f7fa8"; g.lineWidth = 5; for (let x = 40; x < 570; x += 60) { g.beginPath(); g.moveTo(x, 345); g.quadraticCurveTo(x + 15, 335, x + 30, 345); g.stroke(); }
+  g.strokeStyle = "#7a6a5a"; g.lineWidth = 3; for (const y of [372, 392]) { g.beginPath(); g.moveTo(60, y); g.lineTo(y === 372 ? 360 : 250, y); g.stroke(); } // pencil notes
+};
+/** a fat arrow pointing right [600x220]; dashed = an outline-only "guess" arrow */
+export const fxArrow = (p: Pen, col: string, dashed = false) => {
+  const g = p.g, pts: [number, number][] = [[20, 80], [400, 80], [400, 20], [580, 110], [400, 200], [400, 140], [20, 140]];
+  if (dashed) {
+    g.save(); g.setLineDash([34, 22]); g.lineWidth = 18; g.strokeStyle = col; g.lineJoin = "round";
+    g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.stroke(); g.restore();
+  } else p.poly(pts, col, 12);
+};
+/** an aim mark: red ring + cross [300x300] */
+export const fxAim = (p: Pen) => {
+  const g = p.g; g.strokeStyle = "#e0342e"; g.lineWidth = 22;
+  g.beginPath(); g.arc(150, 150, 110, 0, 7); g.stroke();
+  g.lineWidth = 16; g.beginPath(); g.moveTo(150, 10); g.lineTo(150, 290); g.moveTo(10, 150); g.lineTo(290, 150); g.stroke();
+};
+/** a dashed aim line [1024x64] (lay flat, stretch along) */
+export const fxDash = (p: Pen) => {
+  const g = p.g; g.fillStyle = "#ffef9a"; for (let x = 0; x < 1024; x += 96) g.fillRect(x, 16, 58, 32);
+};
+/** torpedo wake: a white foam streak with bubbles, fading toward the start [128x1024] (lay flat) */
+export const fxWake = (p: Pen) => {
+  const g = p.g, gr = g.createLinearGradient(0, 0, 0, 1024);
+  gr.addColorStop(0, "rgba(255,255,255,0.95)"); gr.addColorStop(1, "rgba(255,255,255,0.15)");
+  g.fillStyle = gr; g.beginPath(); g.moveTo(52, 0); g.lineTo(76, 0); g.lineTo(104, 1024); g.lineTo(24, 1024); g.closePath(); g.fill();
+  g.fillStyle = "rgba(255,255,255,0.85)"; for (let i = 0; i < 60; i++) { const y = (i * 173) % 1024, x = 64 + Math.sin(i * 2.3) * (14 + y / 40); g.beginPath(); g.arc(x, y, 4 + (i % 4), 0, 7); g.fill(); }
+};
+/** a question mark [200x300] */
+export const fxQ = (p: Pen, col = "#ffd23a") => {
+  const g = p.g; g.font = "bold 280px Georgia, serif"; g.textAlign = "center"; g.lineWidth = 16; g.strokeStyle = INK; g.lineJoin = "round";
+  g.strokeText("?", 100, 260); g.fillStyle = col; g.fillText("?", 100, 260);
+};
+/** speed lines [400x200] */
+export const fxSpeed = (p: Pen) => {
+  for (const [y, l] of [[50, 300], [100, 380], [150, 260]]) p.stroke([[390 - l, y], [390, y]], 18, "#ffffff");
+};

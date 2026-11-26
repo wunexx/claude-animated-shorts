@@ -1,0 +1,70 @@
+# Re-voice the hook + "But why?" as ONE Kokoro take (the separate 2-word clip came out clipped: "But" lasted 0.06 s),
+# then splice it into voice.wav so "But" starts exactly where the picture expects it (W.but = 3.36 s) and everything
+# from "It started" (4.24 s) on stays untouched. Writes voice.wav (old kept as voice_before_hookfix.wav) + fixes words.json.
+import sys, os, json, shutil
+sys.path.insert(0, "scripts")
+import numpy as np
+import soundfile as sf
+import voice_lines as V
+
+D = "rattails/voice"
+TEXT = "People in Hanoi snipped the tails off live rats and let them go. But why?"
+SPEED = float(sys.argv[1]) if len(sys.argv) > 1 else 1.22
+BUT_AT, KEEP_FROM = 3.36, 4.20
+raw = os.path.join(D, f"hookfix_{SPEED}.wav")
+if os.path.exists(raw): os.remove(raw)
+V.tts_kokoro(TEXT, "am_liam", SPEED, raw)
+x = V.trim(V.decode(raw))
+BSPEED = float(sys.argv[2]) if len(sys.argv) > 2 else SPEED
+rawb = os.path.join(D, f"hookfix_{BSPEED}.wav")
+if BSPEED != SPEED:
+    if os.path.exists(rawb): os.remove(rawb)
+    V.tts_kokoro(TEXT, "am_liam", BSPEED, rawb)
+xb = V.trim(V.decode(rawb)) if BSPEED != SPEED else x
+SR = V.SR
+from faster_whisper import WhisperModel
+m = WhisperModel("small.en", device="cpu", compute_type="int8")
+def words(y):
+    segs, _ = m.transcribe(np.interp(np.arange(0, len(y), SR / 16000), np.arange(len(y)), y).astype(np.float32), word_timestamps=True)
+    return [(w.word.strip(), w.start, w.end) for s in segs for w in s.words]
+ws = words(x); wsb = words(xb)
+print(ws)
+ib = max(i for i, w in enumerate(ws) if w[0].lower().startswith("but"))
+go_end, but_s = ws[ib - 1][2], ws[ib][1]
+cut = int(((go_end + but_s) / 2) * SR)
+ibb = max(i for i, w in enumerate(wsb) if w[0].lower().startswith("but"))
+gb, bb = wsb[ibb - 1][2], wsb[ibb][1]
+A, B = x[:cut], xb[int(((gb + bb) / 2) * SR):]
+lead = bb - (gb + bb) / 2                               # silence inside B before "But"
+ws = ws[:ib] + [(w, s - bb + but_s, e - bb + but_s) for (w, s, e) in wsb[ibb:]]
+out = np.zeros(int(KEEP_FROM * SR), np.float32)
+out[: len(A)] = A
+b0 = int((BUT_AT - lead) * SR)
+assert b0 > len(A), "hook sentence runs into 'But why?'"
+assert b0 + len(B) < len(out), "'But why?' runs into 'It started'"
+out[b0: b0 + len(B)] = B
+out = V.clarity(out)
+old, sr = sf.read(os.path.join(D, "voice.wav"), dtype="float32")
+assert sr == SR
+if not os.path.exists(os.path.join(D, "voice_before_hookfix.wav")):
+    shutil.copy(os.path.join(D, "voice.wav"), os.path.join(D, "voice_before_hookfix.wav"))
+    old_src = old
+else:
+    old_src, _ = sf.read(os.path.join(D, "voice_before_hookfix.wav"), dtype="float32")
+new = old_src.copy()
+k = int(KEEP_FROM * SR)
+new[:k] = out
+sf.write(os.path.join(D, "voice.wav"), new, SR, subtype="PCM_16")
+# words.json: replace the hook words with the new times (B shifted to BUT_AT)
+wj = json.load(open(os.path.join(D, "words.json")))
+L = wj if isinstance(wj, list) else wj["words"]
+rest = [w for w in L if w["s"] >= KEEP_FROM - 0.1]
+shift = BUT_AT - but_s
+hook = [{"w": w, "s": round(s if i < ib else s + shift, 2), "e": round(e if i < ib else e + shift, 2)} for i, (w, s, e) in enumerate(ws)]
+allw = hook + rest
+for i, w in enumerate(allw): w["i"] = i
+if isinstance(wj, list): wj = allw
+else: wj["words"] = allw
+json.dump(wj, open(os.path.join(D, "words.json"), "w"), indent=1)
+n = ib
+print(f"hook sentence {ws[0][1]:.2f}-{go_end:.2f} s = {n / (go_end - ws[0][1]):.2f} w/s; 'But why?' at {BUT_AT:.2f}-{ws[-1][2] + shift:.2f}")

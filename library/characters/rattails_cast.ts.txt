@@ -1,0 +1,222 @@
+// LIBRARY PART: Rat Tails cast + drawings: vietO(v) Hanoi folk (conical kasa / dresses), HOOK_O, HUNTER_O(v), FR_OFF (white
+// suit + pith helmet), FR_CLERK, INSPECTOR_O, LADY_FR, KID_V, FARMER_O; fx: fxRat(p, run|sit|hang, tail 0..1, ph, baby, expr)
+// [400x300; hang 300x400], fxTail [300x120], fxScissors(open) [240], fxRatBasket(n) [500x400], fxPoster(torn) AVIS / 1 CENT
+// [600x800], fxBoard(k) portrait tally slate [620x900], fxNest(n, tailK) [700x420], fxWeed(pulled) [300x420], fxCoin (Indochina
+// cent with a hole) [220], fxTailHeap(seed) [520x260], fxStick [60x520]. Append to toon.ts. Needs the core "pith" hat. Staging
+// (rat run/sit cards, counter runs, flood): src/videos/rattails/cast.ts helpers rat / ratOn / run2 / alongCounter. Origin: Rat Tails 2026-11-22
+
+// ======================= Rat Tails short: cast + drawings (2026-11-22) =======================
+/** Hanoi townsfolk c. 1902: men in indigo / brown tunics with conical hats or bare black hair, women in long dresses */
+export const vietO = (v: number): Outfit => {
+  const woman = v % 2 === 1;
+  return {
+    jacket: ["#3d4f6e", "#6a5a48", "#4a5a44", "#7a4a3a", "#2f3a4a", "#5a4a3a"][v % 6], pants: ["#2a2a30", "#3a3328", "#2e2a26"][v % 3], boots: "#7a5236",
+    hat: v % 3 === 2 ? "hair" : "kasa", hair: "#1c1614", cap: ["#d9b36a", "#cfa95e", "#e0bd78"][v % 3], skin: [SKINS[1], SKINS[3], "#d9a77c", SKINS[2]][v % 4],
+    dress: woman ? ["#6b4a3a", "#4a3f5a", "#7a5a3a", "#3f4f5a"][v % 4] : undefined, sash: woman ? "#2a2a30" : undefined, head: v,
+  };
+};
+export const HOOK_O: Outfit = { jacket: "#3d5a86", pants: "#2a2a30", boots: "#7a5236", hat: "kasa", cap: "#e0bd78", skin: "#d9a77c", head: 3 };
+export const HUNTER_O = (v: number): Outfit => ({ jacket: ["#6a5a48", "#5a5040"][v % 2], pants: "#3a3328", boots: "#7a5236", hat: "hair", hair: "#1c1614", skin: [SKINS[3], "#d9a77c"][v % 2], head: v + 2 });
+export const FR_OFF: Outfit = { jacket: "#f2efe6", pants: "#ece6d6", boots: "#3a2a20", hat: "pith", moustache: "#5a3a24", buttons: "#c9a64a", build: "stout" };
+export const FR_CLERK: Outfit = { jacket: "#e8e2d0", pants: "#3a3d46", boots: "#2a2020", hat: "hair", hair: "#6a4a30", tie: "#2a3a6a" };
+export const INSPECTOR_O: Outfit = { jacket: "#d9cfb0", pants: "#d9cfb0", boots: "#3a2a20", hat: "pith", cap: "#efe6cf", moustache: "#2a1d18", buttons: "#c9a64a" };
+export const LADY_FR: Outfit = { jacket: "#f3c6d4", pants: "#f3c6d4", boots: "#5a3a2a", dress: "#f3c6d4", hat: "bonnet", cap: "#fbeef2", hair: "#8a5a30", sash: "#c25a7a" };
+export const KID_V: Outfit = { jacket: "#d9813a", pants: "#3a3328", boots: "#7a5236", hat: "kasa", cap: "#e0bd78", skin: "#d39a6a", build: "kid", head: 5 };
+export const FARMER_O: Outfit = { jacket: "#7a6a50", pants: "#3a3328", boots: "#7a5236", hat: "kasa", cap: "#cfa95e", skin: SKINS[3], head: 6 };
+
+const RAT = "#8b8078", RAT_D = "#5f554f", RAT_L = "#b8aca2", PINK = "#eaa3a3", PINK_D = "#c97c80", BABY = "#f4bcbc";
+const tailPath = (p: Pen, pts: P2[], w0: number, w1: number, col = PINK) => {
+  for (let i = 0; i < pts.length - 1; i++) {
+    const w = w0 + (w1 - w0) * (i / (pts.length - 1));
+    p.stroke([pts[i], pts[i + 1]], w + 7, INK);
+  }
+  for (let i = 0; i < pts.length - 1; i++) {
+    const w = w0 + (w1 - w0) * (i / (pts.length - 1));
+    p.stroke([pts[i], pts[i + 1]], w, col);
+  }
+  for (let i = 2; i < pts.length - 1; i += 2) p.dot(pts[i][0], pts[i][1], 1.6, PINK_D);
+};
+/** a rat [400x300 side / sit; 300x400 hang]. pose run (side view facing +x, ph = gait 0..1) | sit (front, upright) |
+ *  hang (held by the scruff, dangling). tail = length 0..1 (0 = a stub with a pink nub). baby = a hairless pink pup. */
+export const fxRat = (p: Pen, pose: "run" | "sit" | "hang", tail: number, ph = 0, baby = false, expr: "calm" | "shock" | "smug" = "calm") => {
+  const fur = baby ? BABY : RAT, furD = baby ? PINK_D : RAT_D, belly = baby ? "#f8d0cf" : RAT_L;
+  const eye = (x: number, y: number, r: number) => {
+    if (baby) { p.arc(x, y, r * 1.2, r * 0.6, 20, 160, 3, INK); return; }
+    if (expr === "shock") { p.ell(x, y, r * 1.3, r * 1.5, "#ffffff", 3); p.dot(x, y, r * 0.55, INK); }
+    else if (expr === "smug") { p.ell(x, y, r, r, INK, 0); p.poly([[x - r * 1.3, y - r * 0.2], [x + r * 1.3, y - r * 0.2], [x + r * 1.3, y - r * 1.6], [x - r * 1.3, y - r * 1.6]], fur, 0); }
+    else p.dot(x, y, r, INK);
+  };
+  if (pose === "run") {
+    const s = Math.sin(ph * Math.PI * 2), c = Math.cos(ph * Math.PI * 2);
+    if (tail > 0) {
+      const L = 150 * tail, pts: P2[] = [];
+      for (let i = 0; i <= 12; i++) { const k = i / 12; pts.push([112 - L * k, 198 - 40 * Math.sin(k * 3 + ph * 6) * k - 10 * k]); }
+      tailPath(p, pts, 13, 3);
+    } else { p.ell(104, 196, 12, 9, PINK, 4); p.ell(98, 196, 5, 5, "#d95a5a", 0); }
+    // legs: back pair / front pair alternate
+    for (const [lx, a] of [[140, s], [250, -s]] as [number, number][]) {
+      p.ell(lx + 22 * a, 248 - 8 * Math.max(0, c * (lx > 200 ? -1 : 1)), 20, 12, furD, 4);
+      p.ell(lx - 18 * a, 244, 17, 11, fur, 4);
+    }
+    p.ell(185, 192 - 5 * Math.abs(s), 96, 58, fur, 6);
+    p.clip([[95, 200], [280, 200], [280, 260], [95, 260]], () => p.ell(190, 200, 86, 42, belly, 0));
+    p.ell(185, 192 - 5 * Math.abs(s), 96, 58, null, 6);
+    const hy = 168 - 4 * Math.abs(s);
+    p.poly([[262, hy - 38], [318, hy - 22], [372, hy + 12], [318, hy + 38], [262, hy + 36]], fur, 6);
+    p.ell(268, hy, 48, 40, fur, 0);
+    p.arc(268, hy, 48, 40, 120, 250, 6, INK);
+    p.ell(258, hy - 44, 24, 28, baby ? BABY : PINK, 5); p.ell(258, hy - 42, 13, 16, PINK_D, 0);
+    p.dot(372, hy + 12, 9, "#d95a5a");
+    eye(318, hy - 6, 7);
+    for (const dy of [-6, 4, 14]) p.stroke([[350, hy + 10], [400, hy + dy]], 2, INK);
+    return;
+  }
+  if (pose === "sit") {
+    if (tail > 0) {
+      const L = 170 * tail, pts: P2[] = [];
+      for (let i = 0; i <= 12; i++) { const k = i / 12; pts.push([240 + L * 0.6 * k, 270 - L * 0.55 * Math.sin(k * 2.2)]); }
+      tailPath(p, pts, 13, 3);
+    } else { p.ell(255, 262, 12, 9, PINK, 4); p.ell(262, 262, 5, 5, "#d95a5a", 0); }
+    p.ell(200, 205, 82, 82, fur, 6);
+    p.ell(200, 222, 52, 58, belly, 0);
+    p.ell(160, 285, 26, 13, furD, 4); p.ell(240, 285, 26, 13, furD, 4);
+    p.ell(200, 118, 64, 56, fur, 6);
+    p.ell(146, 72, 28, 32, baby ? BABY : PINK, 5); p.ell(254, 72, 28, 32, baby ? BABY : PINK, 5);
+    p.ell(146, 74, 15, 18, PINK_D, 0); p.ell(254, 74, 15, 18, PINK_D, 0);
+    p.ell(200, 140, 30, 22, belly, 0);
+    p.dot(200, 132, 10, "#d95a5a");
+    eye(176, 108, 8); eye(224, 108, 8);
+    for (const sx of [-1, 1]) for (const dy of [-6, 6]) p.stroke([[200 + sx * 22, 142], [200 + sx * 70, 140 + dy * 1.5]], 2, INK);
+    // front paws up by the chest
+    p.ell(176, 182, 15, 12, PINK, 4); p.ell(224, 182, 15, 12, PINK, 4);
+    return;
+  }
+  // hang: held up by the scruff (canvas 300 x 400): head at top, body dangling, legs splayed
+  const sw = Math.sin(ph * Math.PI * 2) * 6;
+  if (tail > 0) {
+    const L = 170 * tail, pts: P2[] = [];
+    for (let i = 0; i <= 12; i++) { const k = i / 12; pts.push([150 + sw + 30 * Math.sin(k * 4 + ph * 6) * k, 300 + L * k]); }
+    tailPath(p, pts, 13, 3);
+  } else { p.ell(150 + sw, 304, 10, 12, PINK, 4); p.ell(150 + sw, 312, 5, 5, "#d95a5a", 0); }
+  for (const sx of [-1, 1]) { p.ell(150 + sx * 52 + sw, 270, 13, 20, PINK, 4); p.ell(150 + sx * 48, 170, 13, 18, PINK, 4); }
+  p.ell(150 + sw * 0.6, 215, 56, 88, fur, 6);
+  p.ell(150 + sw * 0.6, 230, 34, 60, belly, 0);
+  p.ell(150, 96, 52, 46, fur, 6);
+  p.ell(106, 58, 22, 26, PINK, 5); p.ell(194, 58, 22, 26, PINK, 5);
+  p.ell(150, 120, 26, 20, belly, 0); p.dot(150, 130, 8, "#d95a5a");
+  eye(130, 92, 7); eye(170, 92, 7);
+  p.arc(150, 112, 10, 6, 20, 160, 3, INK);
+};
+/** a severed rat tail [300x120] */
+export const fxTail = (p: Pen) => {
+  const pts: P2[] = [];
+  for (let i = 0; i <= 14; i++) { const k = i / 14; pts.push([30 + 250 * k, 70 - 28 * Math.sin(k * 3.4)]); }
+  tailPath(p, pts, 16, 4);
+  p.ell(30, 70, 9, 11, "#d95a5a", 4);
+};
+/** iron scissors [240x240], open 0..1 */
+export const fxScissors = (p: Pen, open: number) => {
+  const a = 6 + 22 * open;
+  for (const sg of [-1, 1]) {
+    const r = (sg * a * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r);
+    const pt = (x: number, y: number): P2 => [120 + x * c - y * s, 150 + x * s + y * c];
+    p.poly([pt(0, -7), pt(-110, -2), pt(-112, 4), pt(0, 9)], "#c9ccd2", 4);
+    p.ell(pt(46, sg * 18)[0], pt(46, sg * 18)[1], 26, 18, null, 9);
+    p.ell(pt(46, sg * 18)[0], pt(46, sg * 18)[1], 26, 18, null, 0);
+    p.arc(pt(46, sg * 18)[0], pt(46, sg * 18)[1], 26, 18, 0, 360, 8, "#3a3d46");
+  }
+  p.dot(120, 150, 7, "#8a8d94");
+};
+/** woven bamboo basket with rats peeking out [500x400] */
+export const fxRatBasket = (p: Pen, n: number) => {
+  const heads: P2[] = [[170, 150], [260, 130], [340, 158], [215, 120]];
+  for (let i = 0; i < Math.min(n, heads.length); i++) {
+    const [x, y] = heads[i];
+    p.ell(x - 26, y - 36, 15, 18, PINK, 4); p.ell(x + 26, y - 36, 15, 18, PINK, 4);
+    p.ell(x, y, 40, 36, RAT, 5); p.dot(x - 13, y - 6, 6, INK); p.dot(x + 13, y - 6, 6, INK); p.dot(x, y + 14, 6, "#d95a5a");
+  }
+  const body: P2[] = [[70, 170], [430, 170], [400, 380], [100, 380]];
+  p.poly(body, "#c49a58", 6);
+  p.clip(body, () => {
+    for (let y = 185; y < 380; y += 26) p.stroke([[60, y], [440, y]], 5, "#9a7440");
+    for (let x = 80; x < 440; x += 34) p.stroke([[x, 170], [x + 8, 380]], 3, "#a88250");
+  });
+  p.poly(body, null, 6);
+  p.band([[62, 172], [438, 172]], "#b08848", 18, 5);
+};
+/** the bounty notice [600x800]; torn 0..1 rips it off diagonally */
+export const fxPoster = (p: Pen, torn = 0) => {
+  const g = p.g;
+  const edge: P2[] = torn > 0 ? [[40, 40], [560, 40], [560, 60 + 700 * (1 - torn) * 0.5], [380, 250 + 500 * (1 - torn)], [210, 120 + 600 * (1 - torn)], [40, 300 + 460 * (1 - torn)]] : [[40, 40], [560, 40], [560, 760], [40, 760]];
+  p.poly(edge, "#f1e6c8", 6);
+  p.clip(edge, () => {
+    g.fillStyle = "#2a2230"; g.textAlign = "center"; g.font = "bold 92px Georgia, serif"; g.fillText("AVIS", 300, 150);
+    g.fillRect(90, 175, 420, 6);
+    p.g.save(); p.g.translate(110, 200); p.g.scale(1, 1); fxRat(p, "run", 1, 0.25); p.g.restore();
+    g.fillStyle = "#b8282a"; g.font = "bold 132px Georgia, serif"; g.fillText("1 CENT", 300, 610);
+    g.fillStyle = "#2a2230"; g.font = "bold 46px Georgia, serif"; g.fillText("PAR QUEUE DE RAT", 300, 690);
+  });
+  p.poly(edge, null, 6);
+  for (const [x, y] of [[70, 70], [530, 70]] as P2[]) p.dot(x, y, 9, "#8a6a3a");
+};
+/** sewer tally slate [900x620]: k 0 = April's weekly count, 1 = + June's day count (circled) */
+export const fxBoard = (p: Pen, k: number) => {
+  const g = p.g;
+  p.poly([[20, 20], [880, 20], [880, 600], [20, 600]], "#7a5636", 6);
+  p.poly([[50, 50], [850, 50], [850, 570], [50, 570]], "#2f3d36", 4);
+  g.fillStyle = "rgba(240,236,220,0.92)"; g.textAlign = "left"; g.font = "bold 58px 'Comic Sans MS', sans-serif";
+  g.fillText("AVRIL", 90, 140); g.font = "bold 70px 'Comic Sans MS', sans-serif"; g.fillText("7,985", 470, 145);
+  g.font = "36px 'Comic Sans MS', sans-serif"; g.fillText("/ week", 690, 140);
+  for (let i = 0; i < 7; i++) { const x = 95 + i * 52; for (let j = 0; j < 4; j++) p.stroke([[x + j * 9, 190], [x + j * 9 + 2, 250]], 5, "rgba(240,236,220,0.85)"); p.stroke([[x - 6, 245], [x + 36, 195]], 5, "rgba(240,236,220,0.85)"); }
+  if (k > 0) {
+    g.font = "bold 58px 'Comic Sans MS', sans-serif"; g.fillText("JUIN", 90, 410);
+    g.fillStyle = "#ffe36a"; g.font = "bold 120px 'Comic Sans MS', sans-serif"; g.fillText("20,114", 330, 430);
+    g.fillStyle = "rgba(240,236,220,0.92)"; g.font = "36px 'Comic Sans MS', sans-serif"; g.fillText("/ day", 720, 500);
+    p.arc(510, 392, 230, 92, 0, 340, 7, "#ffe36a");
+  }
+};
+/** straw nest [700x420]: the tailless mother (left) and n pink pups whose tails grow with tk 0..1 */
+export const fxNest = (p: Pen, n: number, tk: number) => {
+  p.ell(380, 330, 290, 80, "#b8904c", 6);
+  p.clip([[60, 330], [700, 330], [700, 420], [60, 420]], () => { for (let i = 0; i < 40; i++) { const x = 100 + ((i * 53) % 560), y = 340 + ((i * 29) % 60); p.stroke([[x - 30, y], [x + 30, y - 12]], 4, "#8a6a34"); } });
+  const pups: P2[] = [[300, 300], [390, 286], [470, 298], [345, 318], [430, 316], [520, 312]];
+  for (let i = 0; i < Math.min(n, pups.length); i++) {
+    const [x, y] = pups[i];
+    p.g.save(); p.g.translate(x - 80, y - 85); p.g.scale(0.42, 0.42); fxRat(p, "sit", tk, 0, true); p.g.restore();
+  }
+  p.g.save(); p.g.translate(40, 70); p.g.scale(0.9, 0.9); fxRat(p, "sit", 0, 0, false, "smug"); p.g.restore();
+  for (let i = 0; i < 26; i++) { const x = 110 + ((i * 47) % 540), y = 330 + ((i * 13) % 30); p.stroke([[x - 24, y + 6], [x + 22, y - 8]], 4, "#d4ad62"); }
+};
+/** a weed [300x420]: stage 0 growing in soil (leaves + yellow flower), 1 pulled out with roots dangling */
+export const fxWeed = (p: Pen, pulled: boolean) => {
+  const by = pulled ? 260 : 380;
+  if (pulled) for (const dx of [-14, 0, 12, 24]) p.line(curve([150, by], [150 + dx * 1.5, by + 70], [150 + dx * 2.6, by + 140]), "#b89a6a", 5);
+  p.line([[150, by], [150, by - 190]], "#4f8a3a", 9);
+  for (const [a, l] of [[-50, 110], [40, 120], [-25, 90], [30, 80]] as P2[]) {
+    const r = (a * Math.PI) / 180, tip: P2 = [150 + Math.sin(r) * l, by - 30 - Math.cos(r) * l * 0.6];
+    p.poly([[150, by - 20], [tip[0] - 14, tip[1] + 18], tip, [tip[0] + 16, tip[1] + 6]], "#5fa448", 5);
+  }
+  for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; p.ell(150 + Math.cos(a) * 26, by - 200 + Math.sin(a) * 26, 14, 9, "#f2c230", 3, 0, 360, (a * 180) / Math.PI); }
+  p.dot(150, by - 200, 13, "#e0a020");
+  if (pulled) p.ell(150, by + 8, 30, 14, "#6a4a30", 4);
+};
+/** French Indochina 1 cent: bronze with a central hole [220x220] */
+export const fxCoin = (p: Pen) => {
+  p.ell(110, 110, 96, 96, "#c47a3a", 7);
+  p.arc(110, 110, 80, 80, 0, 360, 4, "#e09a58");
+  p.ell(110, 110, 22, 22, "#f4f1ea", 6);
+  p.g.fillStyle = "#7a4220"; p.g.textAlign = "center"; p.g.font = "bold 30px Georgia, serif"; p.g.fillText("1 CENT", 110, 178);
+  p.arc(80, 70, 40, 30, 200, 260, 6, "#f0c08a");
+};
+/** a heap of rat tails [520x260] */
+export const fxTailHeap = (p: Pen, seed = 1) => {
+  p.ell(260, 210, 230, 50, "#c98a8a", 6);
+  for (let i = 0; i < 26; i++) {
+    const r1 = Math.sin(seed * 91 + i * 12.9898) * 43758.5453, r = r1 - Math.floor(r1);
+    const x = 70 + ((i * 97 + seed * 31) % 380), y = 140 + ((i * 37) % 80), a = r * Math.PI * 2, L = 90 + 60 * r, pts: P2[] = [];
+    for (let k = 0; k <= 8; k++) { const q = k / 8; pts.push([x + Math.cos(a) * L * q, y + Math.sin(a) * L * q * 0.35 + 14 * Math.sin(q * 4 + i)]); }
+    tailPath(p, pts, 12, 3);
+  }
+};
+/** a stick [60x520] */
+export const fxStick = (p: Pen) => { p.poly([[24, 20], [36, 20], [40, 500], [20, 500]], "#8a5a3a", 5); };

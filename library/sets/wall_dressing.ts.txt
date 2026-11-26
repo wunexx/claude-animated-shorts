@@ -1,0 +1,72 @@
+// LIBRARY PART: painted set detail: woodTex() (wood grain), wallArt(root, kind, pos, w, h, rotY, seed) with kind chart |
+// notice (cork board + pinned papers) | clock | portrait (gilt frame, bearded bust) | poster. Canvas textures, so close-ups
+// have something to read; use 2-4 per interior. Append to build.ts (needs ctex, lam). The chart/poster titles are
+// Penicillin's (STAPHYLOCOCCUS / ST. MARY'S): change them per story. Origin: Penicillin 2 2026-11-21
+// ---------------- set dressing with painted detail (Penicillin 2, 2026-11-21: the references' sets carry illustrated
+// texture everywhere; flat-colour walls made our close-ups look empty) ----------------
+const woodTex = () => ctex("penWoodGrain", 512, 128, (g, r) => {
+  g.fillStyle = "#6a4632"; g.fillRect(0, 0, 512, 128);
+  for (let i = 0; i < 46; i++) {
+    g.strokeStyle = `rgba(${40 + r() * 30},${22 + r() * 16},${14 + r() * 10},${0.25 + r() * 0.35})`; g.lineWidth = 1 + r() * 2.5;
+    const y = r() * 128; g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= 512; x += 32) g.lineTo(x, y + Math.sin(x * 0.02 + i) * (2 + r() * 4)); g.stroke();
+  }
+  g.fillStyle = "rgba(255,220,170,0.08)"; g.fillRect(0, 0, 512, 22);
+});
+type ArtKind = "chart" | "notice" | "clock" | "portrait" | "poster";
+const artTex = (kind: ArtKind, seed: number) => ctex("penArt" + kind + seed, 512, kind === "clock" ? 512 : 680, (g, r) => {
+  const W = 512, H = kind === "clock" ? 512 : 680, ink = "#241726";
+  if (kind === "clock") {
+    g.fillStyle = "#4a3426"; g.beginPath(); g.arc(256, 256, 250, 0, 7); g.fill();
+    g.fillStyle = "#f6efdc"; g.beginPath(); g.arc(256, 256, 212, 0, 7); g.fill();
+    g.strokeStyle = ink; g.lineCap = "round";
+    for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; g.lineWidth = i % 3 ? 8 : 16; g.beginPath(); g.moveTo(256 + Math.sin(a) * 170, 256 - Math.cos(a) * 170); g.lineTo(256 + Math.sin(a) * 196, 256 - Math.cos(a) * 196); g.stroke(); }
+    g.lineWidth = 18; g.beginPath(); g.moveTo(256, 256); g.lineTo(256 + 90, 256 - 60); g.stroke();
+    g.lineWidth = 11; g.beginPath(); g.moveTo(256, 256); g.lineTo(256 - 20, 256 - 160); g.stroke();
+    g.fillStyle = ink; g.beginPath(); g.arc(256, 256, 16, 0, 7); g.fill();
+    return;
+  }
+  if (kind === "portrait") {
+    g.fillStyle = "#b8892e"; g.fillRect(0, 0, W, H); g.fillStyle = "#8a6420"; g.fillRect(26, 26, W - 52, H - 52);
+    g.fillStyle = "#2e3a34"; g.fillRect(48, 48, W - 96, H - 96);
+    g.fillStyle = "#1c1a22"; g.beginPath(); g.ellipse(256, 620, 170, 190, 0, Math.PI, 0); g.fill(); // shoulders
+    g.fillStyle = "#e6c9a6"; g.beginPath(); g.ellipse(256, 300, 92, 104, 0, 0, 7); g.fill();
+    g.fillStyle = seed % 2 ? "#e9e6e0" : "#5a4030"; g.beginPath(); g.ellipse(256, 372, 84, 60, 0, 0, Math.PI); g.fill(); // beard
+    g.fillStyle = "#cfcac0"; g.beginPath(); g.ellipse(256, 222, 92, 40, 0, Math.PI, 0); g.fill();
+    g.fillStyle = ink; for (const x of [222, 290]) { g.beginPath(); g.arc(x, 296, 8, 0, 7); g.fill(); }
+    g.strokeStyle = "#5a4418"; g.lineWidth = 6; g.strokeRect(14, 14, W - 28, H - 28);
+    return;
+  }
+  g.fillStyle = kind === "notice" ? "#b0804e" : "#f3ecd8"; g.fillRect(0, 0, W, H);
+  g.strokeStyle = kind === "notice" ? "#6a4630" : ink; g.lineWidth = 14; g.strokeRect(7, 7, W - 14, H - 14);
+  if (kind === "notice") { // cork board with pinned papers
+    for (let i = 0; i < 6; i++) {
+      const x = 40 + (i % 2) * 220 + r() * 30, y = 40 + Math.floor(i / 2) * 200 + r() * 20, w = 170 + r() * 30, h = 150 + r() * 20;
+      g.save(); g.translate(x + w / 2, y + h / 2); g.rotate((r() - 0.5) * 0.15);
+      g.fillStyle = ["#fbf6e8", "#f2e7b8", "#e8f0f6"][i % 3]; g.fillRect(-w / 2, -h / 2, w, h);
+      g.fillStyle = "rgba(36,23,38,0.55)"; for (let l = 0; l < 6; l++) g.fillRect(-w / 2 + 16, -h / 2 + 22 + l * 20, w - 32 - r() * 50, 6);
+      g.fillStyle = "#c0392b"; g.beginPath(); g.arc(0, -h / 2 + 8, 9, 0, 7); g.fill(); g.restore();
+    }
+    return;
+  }
+  // chart / poster: a title bar, then cocci clusters (chart) or bold lines (poster)
+  g.fillStyle = kind === "chart" ? "#2f5b7a" : "#8a3b36"; g.fillRect(14, 14, W - 28, 90);
+  g.fillStyle = "#fbf6e8"; g.font = "bold 46px Arial"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText(kind === "chart" ? "STAPHYLOCOCCUS" : "ST. MARY'S", 256, 60);
+  if (kind === "chart") {
+    for (let k = 0; k < 6; k++) {
+      const cx = 110 + (k % 2) * 290, cy = 190 + Math.floor(k / 2) * 165;
+      for (let i = 0; i < 9; i++) { const a = r() * 7, rr = r() * 44; g.fillStyle = ["#e2620a", "#f08a18", "#c9500c"][i % 3];
+        g.beginPath(); g.arc(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, 16, 0, 7); g.fill(); g.strokeStyle = ink; g.lineWidth = 3; g.stroke(); }
+      g.fillStyle = "rgba(36,23,38,0.6)"; g.fillRect(cx - 60, cy + 64, 120, 8);
+    }
+  } else {
+    g.fillStyle = ink; g.font = "bold 40px Arial"; g.fillText("HOSPITAL", 256, 160); g.fillText("MEDICAL SCHOOL", 256, 210);
+    g.fillStyle = "rgba(36,23,38,0.55)"; for (let l = 0; l < 12; l++) g.fillRect(60, 270 + l * 30, 392 - (l % 3) * 60, 9);
+  }
+});
+/** a framed picture / chart / clock on a wall: centre p, facing rotY (0 = +z), size w x h metres */
+export const wallArt = (root: THREE.Object3D, kind: ArtKind, p: [number, number, number], w: number, h: number, rotY = 0, seed = 1) => {
+  const m = new THREE.Mesh(kind === "clock" ? new THREE.CircleGeometry(w / 2, 48) : new THREE.PlaneGeometry(w, h),
+    lam("penArtM" + kind + seed, () => ({ map: artTex(kind, seed) })));
+  m.position.set(...p); m.rotation.y = rotY; root.add(m);
+};

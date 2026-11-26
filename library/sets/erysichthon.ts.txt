@@ -1,0 +1,98 @@
+// LIBRARY PART: Erysichthon sets: groveSet = a sacred grove clearing with ONE giant 3D oak (bark texture, roots, branches,
+// 9 leaf crowns; swaps to a cut stump with rings per shot), ring of trees + cypresses, wheat fields, far hills, a stone altar;
+// hallSet = a banquet table with cloth + red runner (shown per shot), a red throne-back panel and two bronze braziers (glow).
+// Append to build.ts AFTER library/sets/greece.ts.txt (uses its cypress, U01). Register: SETS.grove = (c) => groveSet(c) as SetHooks;
+// SETS.palace = (c) => both(palaceSet, hallSet as SetBuilder)(c). Needs in story.ts: oakStands(id), PX, TW, TZ0, TZ1, TY, TABLE_SHOTS. Origin: Erysichthon (2026-11-18)
+// ======================= Erysichthon short: its own sets =======================
+/** grooved brown bark */
+const barkTex = () => ctex("barkHD", 512, 1024, (g, r) => {
+  g.fillStyle = "#7a5636"; g.fillRect(0, 0, 512, 1024);
+  for (let i = 0; i < 60; i++) {
+    const x = r() * 512; g.strokeStyle = i % 3 ? "rgba(60,38,26,0.55)" : "rgba(160,120,84,0.45)"; g.lineWidth = 6 + r() * 10;
+    g.beginPath(); g.moveTo(x, 0); for (let y = 0; y <= 1024; y += 64) g.lineTo(x + Math.sin(y * 0.01 + i) * 14, y); g.stroke();
+  }
+  for (let i = 0; i < 40; i++) { g.fillStyle = "rgba(90,130,60,0.25)"; g.beginPath(); g.ellipse(r() * 512, 700 + r() * 324, 20 + r() * 30, 10 + r() * 14, 0, 0, 7); g.fill(); }
+});
+/** ripe wheat seen from the side: stalks and ears */
+const wheatTex = () => ctex("wheatHD", 512, 256, (g, r) => {
+  g.fillStyle = "#d9a83e"; g.fillRect(0, 0, 512, 256);
+  for (let i = 0; i < 700; i++) { const x = r() * 512, y = r() * 256; g.fillStyle = ["#f0c85a", "#c08a2e", "#e8b84a", "#b07a28"][i % 4]; g.beginPath(); g.ellipse(x, y, 3 + r() * 3, 8 + r() * 6, (r() - 0.5) * 0.6, 0, 7); g.fill(); }
+});
+/** the sacred grove: a clearing with one giant oak (or its stump), a ring of trees, wheat fields, far hills */
+export const groveSet = (c: { root: THREE.Object3D; kit: Kit; glow: THREE.Group }) => {
+  const b = new Batch(), r = rng(31);
+  b.add(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2), lam("groveGrass", () => ({ map: rep(grassHD(), 60, 60) })));
+  const wheat = lam("wheat", () => ({ map: rep(wheatTex(), 30, 1) }));
+  b.add(boxGeo(V(-70, 0, -70), V(70, 0.9, -18)), wheat);
+  b.add(boxGeo(V(-90, 0, -18), V(-16, 0.9, 30)), wheat);
+  const hillM = lam("groveHill", () => ({ color: "#7aa060" })), farM = lam("groveFar", () => ({ color: "#8a8fb0" }));
+  for (let i = 0; i < 7; i++) b.add(new THREE.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(50 + i * 7, 14 + (i % 3) * 6, 30).translate(-180 + i * 60, -2, -150 - (i % 2) * 30), i % 2 ? hillM : farM);
+  for (let i = 0; i < 5; i++) b.add(new THREE.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(60, 30 + i * 6, 40).translate(-200 + i * 100, -4, -320), farM);
+  // a ring of ordinary trees and cypresses around the clearing (left out where they would block a lens)
+  for (let i = 0; i < 26; i++) {
+    const a = U01(r, 0, Math.PI * 2), d = U01(r, 15, 30), x = Math.cos(a) * d, z = Math.sin(a) * d - 4;
+    if (z > -10 && z < 2 && Math.abs(x) < 16) continue;
+    prop(b, c.kit, i % 3 ? "tree_oak" : "tree_fat", x, 0, z, U01(r, 5, 8), r() * 6);
+  }
+  for (const [x, z, h] of [[-12, -16, 9], [-9.5, -17, 7], [13, -15, 9.5], [15, -17.5, 7.5], [-20, -8, 8], [21, -6, 8.5]] as const) cypress(b, x, 0, z, h);
+  // a little stone altar of Demeter with a wheat sheaf
+  const stone = lam("altar", () => ({ color: "#e6dccb" }));
+  b.add(boxGeo(V(-4.6, 0, -3.4), V(-3.4, 0.9, -2.6)), stone);
+  b.add(boxGeo(V(-4.75, 0.9, -3.55), V(-3.25, 1.05, -2.45)), stone);
+  b.build(c.root);
+
+  // the oak (hidden in the stump shots) and the stump (shown only then): each in its own group, owned by this closure
+  const oak = new THREE.Group(), stump = new THREE.Group(), ob = new Batch(), sb = new Batch();
+  const bark = lam("bark", () => ({ map: rep(barkTex(), 3, 2) }));
+  ob.add(new THREE.CylinderGeometry(0.9, 1.25, 7, 22, 4).translate(0, 3.5, 0), bark);
+  for (let i = 0; i < 6; i++) { // roots
+    const a = (i / 6) * Math.PI * 2 + 0.3;
+    ob.add(new THREE.CylinderGeometry(0.12, 0.42, 1.3, 8).rotateZ(Math.PI / 2 - 0.6).rotateY(-a).translate(Math.cos(a) * 1.15, 0.12, Math.sin(a) * 1.15), bark);
+  }
+  for (const [a, el, len] of [[0.5, 0.75, 4.2], [2.4, 0.65, 4.6], [4.1, 0.8, 4.0], [5.4, 0.6, 3.8], [1.4, 1.0, 3.6]] as const) {
+    const g = new THREE.CylinderGeometry(0.22, 0.48, len, 10).translate(0, len / 2, 0).rotateZ(-(Math.PI / 2 - el)).rotateY(-a).translate(0, 6.0, 0);
+    ob.add(g, bark);
+  }
+  const leaves = [leafMat(0), leafMat(1), leafMat(2), leafMat(4)];
+  const crowns: [number, number, number, number][] = [[0, 10.4, 0, 4.4], [-3.4, 9.0, 0.6, 3.4], [3.5, 9.2, -0.4, 3.5], [0.8, 8.4, 2.6, 3.0], [-1.6, 8.6, -2.6, 3.2], [2.2, 11.8, -1.2, 3.0], [-2.4, 11.4, 1.0, 2.8], [4.8, 8.0, 1.6, 2.2], [-4.9, 7.8, -1.2, 2.3]];
+  crowns.forEach(([x, y, z, s], i) => ob.add(new THREE.SphereGeometry(1, 22, 16).scale(s * 1.1, s * 0.85, s).translate(x, y, z), leaves[i % 4]));
+  ob.build(oak);
+  sb.add(new THREE.CylinderGeometry(1.0, 1.25, 0.6, 22).translate(0, 0.3, 0), bark);
+  sb.add(new THREE.CylinderGeometry(0.98, 0.98, 0.02, 22).translate(0, 0.61, 0), lam("stumpTop", () => ({ map: ctex("rings", 256, 256, (g) => {
+    g.fillStyle = "#e8c48a"; g.fillRect(0, 0, 256, 256); g.strokeStyle = "#b48a52"; g.lineWidth = 3;
+    for (let k = 1; k < 12; k++) { g.beginPath(); g.arc(128, 128, k * 11, 0, 7); g.stroke(); }
+  }) })));
+  for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; sb.add(new THREE.CylinderGeometry(0.12, 0.42, 1.3, 8).rotateZ(Math.PI / 2 - 0.6).rotateY(-a).translate(Math.cos(a) * 1.15, 0.12, Math.sin(a) * 1.15), bark); }
+  sb.build(stump);
+  c.root.add(oak, stump);
+  stump.visible = false;
+  return {
+    clouds: true,
+    update: (u: { id: number; active: boolean }) => { if (!u.active) return; const up = STORY.oakStands(u.id); oak.visible = up; stump.visible = !up; },
+  };
+};
+
+/** the feast hall extras on the palace terrace: the banquet table (shown in STORY.TABLE_SHOTS) and two bronze braziers */
+export const hallSet = (c: { root: THREE.Object3D; glow: THREE.Group }) => {
+  const X = STORY.PX, b = new Batch(), tb = new Batch(), table = new THREE.Group();
+  const wood = lam("tableWood", () => ({ color: "#8a5a34" })), cloth = lam("tableCloth", () => ({ color: "#f4efe4" })), runner = lam("runner", () => ({ color: "#8e2f36" }));
+  const { TW, TZ0, TZ1, TY } = STORY;
+  tb.add(boxGeo(V(X - TW, TY - 0.07, TZ0), V(X + TW, TY, TZ1)), cloth);
+  tb.add(boxGeo(V(X - TW - 0.01, TY - 0.32, TZ0 - 0.01), V(X + TW + 0.01, TY - 0.07, TZ1 + 0.01)), cloth);
+  tb.add(boxGeo(V(X - 0.13, TY, TZ0 + 0.1), V(X + 0.13, TY + 0.005, TZ1 - 0.1)), runner);
+  for (const [x, z] of [[X - TW + 0.12, TZ0 + 0.12], [X + TW - 0.12, TZ0 + 0.12], [X - TW + 0.12, TZ1 - 0.12], [X + TW - 0.12, TZ1 - 0.12]]) tb.add(boxGeo(V(x - 0.06, 0, z - 0.06), V(x + 0.06, TY - 0.32, z + 0.06)), wood);
+  tb.build(table);
+  // the throne back: a red panel with a gold sun disc, so it never reads as a blank board
+  b.add(boxGeo(V(X - 0.52, 0.85, -1.25), V(X + 0.52, 2.4, -1.215)), runner);
+  b.add(new THREE.CircleGeometry(0.16, 20).translate(X, 2.15, -1.21), lam("gold", () => ({ color: "#e0b040" })));
+  c.root.add(table);
+  const bronze = lam("bronze", () => ({ color: "#a8743e" }));
+  for (const [x, z] of [[X - 4.4, 2.0], [X + 2.6, -0.6]] as const) {
+    for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; b.add(new THREE.CylinderGeometry(0.03, 0.04, 1.0, 6).rotateZ(0.18).rotateY(-a).translate(x + Math.cos(a) * 0.14, 0.48, z + Math.sin(a) * 0.14), bronze); }
+    b.add(new THREE.SphereGeometry(0.42, 18, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).translate(x, 1.0, z), bronze);
+    const coal = new THREE.Mesh(new THREE.CircleGeometry(0.38, 18).rotateX(-Math.PI / 2).translate(x, 0.99, z), GLOW_FIRE);
+    c.glow.add(coal);
+  }
+  b.build(c.root);
+  return { update: (u: { id: number; active: boolean }) => { if (u.active) table.visible = STORY.TABLE_SHOTS.includes(u.id); } };
+};

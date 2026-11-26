@@ -1,0 +1,67 @@
+// LIBRARY PART: Atlas short sets: edgeSet (grassy plateau ending in a cliff at z -5, sea of cloud below, far peaks, cypresses),
+// mountainSet (x 3000: rock peaks, main summit y 22.4 at z -40), museumSet (z 8000: marble floor, red wall, columns, plinth),
+// clinicSet (z -8000: dim wall + lightbox frame for an fx X-ray card). Append to build.ts AFTER greece.ts.txt (uses cone, cypress, cliffRock, U01).
+// Register: SETS.edge = (c) => edgeSet(c); SETS.mountain = ...; SETS.museum = ...; SETS.clinic = ...  Needs grassHD, cobbleHD imported from paint.
+// Origin: Atlas (2026-11-18)
+// ======================= Atlas short: its own sets =======================
+/** the edge of the world: a grassy plateau ending in a cliff at z = -5 (along x), a sea of cloud far below to the
+ *  horizon with a few peaks poking through, cypresses, rocks on the lip. Atlas stands at the origin. */
+export const edgeSet = (c: { root: THREE.Object3D }) => {
+  const b = new Batch(), r = rng(31);
+  b.add(new THREE.PlaneGeometry(140, 44).rotateX(-Math.PI / 2).translate(0, 0, 17), lam("edgeGrass", () => ({ map: rep(grassHD(), 34, 11) })));
+  const rock = lam("edgeRock", () => ({ map: rep(cliffRock(), 6, 4) }));
+  b.add(boxGeo(V(-70, -90, -9), V(70, -0.03, -5)), rock);
+  for (let i = 0; i < 46; i++) {
+    const x = U01(r, -40, 40), s = 0.35 + r() * 0.9;
+    if (Math.abs(x) < 2.6) continue;
+    b.add(new THREE.DodecahedronGeometry(1, 0).scale(s, s * 0.7, s).rotateY(r() * 6).translate(x, s * 0.2, -5.2 - r() * 1.2), rock);
+  }
+  for (let i = 0; i < 10; i++) { const x = U01(r, -30, 30), z = U01(r, 6, 30), s = 0.3 + r() * 0.5; if (Math.abs(x) < 4) continue; b.add(new THREE.DodecahedronGeometry(1, 0).scale(s, s * 0.6, s).translate(x, 0, z), rock); }
+  const cl = lam("edgePuff", () => ({ color: "#eef1fb" }));
+  for (let i = 0; i < 150; i++) {
+    const z = -30 - Math.pow(r(), 0.7) * 420, x = U01(r, -1, 1) * (60 + (-z) * 0.9), s = 6 + r() * 10 + (-z) * 0.04;
+    b.add(new THREE.SphereGeometry(1, 14, 8).scale(s * 1.6, s * 0.45, s).translate(x, -16 + r() * 4, z), cl);
+  }
+  const peak = lam("edgePeak", () => ({ map: rep(cliffRock(), 3, 3) }));
+  for (const [x, z, rr, h] of [[-120, -300, 40, 58], [-60, -380, 34, 44], [90, -330, 46, 66], [170, -260, 30, 40], [20, -420, 36, 50]] as const)
+    cone(b, peak, x, -24, z, rr, h, 8);
+  for (const [x, z, h] of [[-6.2, -3.4, 5.5], [-8.6, -4.0, 4.2], [7.8, -3.8, 5.0], [10.5, -4.2, 3.8], [-13, -2.5, 5.2], [14, -1.5, 4.6]] as const) cypress(b, x, 0, z, h);
+  b.build(c.root);
+  return { clouds: true };
+};
+/** Ovid's mountain (x = 3000): rock peaks at night; Atlas (a giant card) stands on the main summit (y 22, z -40) */
+export const mountainSet = (c: { root: THREE.Object3D }) => {
+  const X = 3000, b = new Batch(), r = rng(8);
+  const rock = lam("mtnRock", () => ({ map: rep(cliffRock(), 5, 5) }));
+  b.add(new THREE.PlaneGeometry(600, 400).rotateX(-Math.PI / 2).translate(X, -0.5, -120), lam("mtnGround", () => ({ map: rep(cliffRock(), 40, 30) })));
+  cone(b, rock, X, 0, -40, 20, 22.4, 9);
+  for (const [dx, z, rr, h] of [[-28, -60, 16, 15], [30, -70, 18, 17], [-55, -110, 22, 24], [60, -120, 24, 26], [-10, -150, 26, 20], [95, -60, 14, 11], [-90, -50, 14, 10]] as const)
+    cone(b, rock, X + dx, 0, z, rr, h, 8);
+  for (let i = 0; i < 40; i++) { const x = X + U01(r, -60, 60), z = U01(r, -30, 10), s = 0.8 + r() * 2.4; b.add(new THREE.DodecahedronGeometry(1, 0).scale(s, s * 0.6, s).translate(x, 0, z), rock); }
+  b.build(c.root);
+  return {};
+};
+/** a museum room (z = 8000): marble floor, Pompeian-red wall, two columns, a plinth for the Farnese Atlas */
+export const museumSet = (c: { root: THREE.Object3D }) => {
+  const Z = 8000, b = new Batch();
+  const marble = lam("musMarble", () => ({ color: "#e4dccd" })), wall = lam("musWall", () => ({ color: "#8a3234" })), dark = lam("musDark", () => ({ color: "#5a2224" }));
+  b.add(new THREE.PlaneGeometry(30, 20).rotateX(-Math.PI / 2).translate(0, 0, Z + 4), lam("musFloor", () => ({ map: rep(cobbleHD(), 8, 6), color: "#efe6d6" })));
+  b.add(new THREE.PlaneGeometry(30, 12).translate(0, 6, Z - 4), wall);
+  b.add(boxGeo(V(-15, 0, Z - 4), V(15, 0.5, Z - 3.8)), dark);
+  b.add(boxGeo(V(-15, 4.6, Z - 4), V(15, 4.9, Z - 3.8)), marble);
+  for (const x of [-2.6, 2.6, -6.5, 6.5]) { b.add(new THREE.CylinderGeometry(0.32, 0.36, 4.6, 18).translate(x, 2.3, Z - 3.4), marble); b.add(boxGeo(V(x - 0.48, 0, Z - 3.88), V(x + 0.48, 0.28, Z - 2.92)), marble); }
+  b.add(boxGeo(V(-0.75, 0, Z - 1.2), V(0.75, 1.05, Z + 0.2)), marble);
+  b.add(boxGeo(V(-0.85, 0.95, Z - 1.3), V(0.85, 1.1, Z + 0.3)), marble);
+  b.build(c.root);
+  return { indoor: true };
+};
+/** a dim clinic wall (z = -8000) with a lightbox frame; the X-ray itself is an fx card at z -8002.8 */
+export const clinicSet = (c: { root: THREE.Object3D }) => {
+  const Z = -8000, b = new Batch();
+  b.add(new THREE.PlaneGeometry(20, 10).translate(0, 5, Z - 3), lam("clinWall", () => ({ color: "#2e4a5e" })));
+  b.add(new THREE.PlaneGeometry(20, 12).rotateX(-Math.PI / 2).translate(0, 0, Z + 3), lam("clinFloor", () => ({ color: "#6a7a88" })));
+  b.add(boxGeo(V(-1.28, 0.62, Z - 3), V(1.28, 4.58, Z - 2.88)), lam("clinFrame", () => ({ color: "#d8dde2" })));
+  b.add(boxGeo(V(-10, 0, Z - 3), V(10, 0.3, Z - 2.9)), lam("clinSkirt", () => ({ color: "#20303e" })));
+  b.build(c.root);
+  return { indoor: true };
+};

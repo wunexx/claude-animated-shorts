@@ -1,0 +1,254 @@
+// LIBRARY PART: 1920s-40s science cast + drawings: FLEMING_SUIT/COAT, FLOREY_O, CHAIN_O, scholarO(v), SOLDIER_44, MEDIC_O;
+// fx: fxStack (pile of petri dishes), fxDish(m, c) (mould + clear ring), fxSuitcase, fxFlask(label, liq, dust), fxWeb, fxLikes (0 likes),
+// fxCalendar(year), fxBoard (chalkboard), fxJournal, fxCage(mode, ph, tag) with mice, fxSyringe, fxCrate, fxMould, fxBug(wall, crack, mood),
+// fxDropP, fxPop, fxPlant, fxWeed, fxMedal, fxSparkle, fxZzz, fxMicroscope. Append to toon.ts. Needs the core "hold" prop. Origin: Penicillin 2026-11-19
+// ======================= penicillin cast + drawings (Fleming short, 2026-11-19) =======================
+const txt = (p: Pen, s: string, x: number, y: number, size: number, col = INK, font = "bold", align: CanvasTextAlign = "center", out = 0) => {
+  const g = p.g; g.save(); g.font = `${font} ${size}px "Arial Rounded MT Bold", "Trebuchet MS", Arial, sans-serif`; g.textAlign = align; g.textBaseline = "middle";
+  if (out) { g.lineWidth = out; g.strokeStyle = INK; g.lineJoin = "round"; g.strokeText(s, x, y); }
+  g.fillStyle = col; g.fillText(s, x, y); g.restore();
+};
+const hrand = (i: number) => { const v = Math.sin(i * 91.17 + 7.3) * 43758.5453; return v - Math.floor(v); };
+// ---- outfits ----
+export const FLEMING_SUIT: Outfit = { jacket: "#6f6a78", pants: "#5d5866", boots: "#2a2228", hat: "hair", hair: "#cdb27e", tie: "#b0343c", buttons: "#2a2228", head: 3 };
+export const FLEMING_COAT: Outfit = { jacket: "#f3f1ea", pants: "#5d5866", boots: "#2a2228", hat: "hair", hair: "#cdb27e", tie: "#b0343c", buttons: "#c9c4b6", head: 3 };
+export const FLOREY_O: Outfit = { jacket: "#f3f1ea", pants: "#4a4f5e", boots: "#2a2228", hat: "hair", hair: "#7a5434", tie: "#2f5b7a", buttons: "#c9c4b6", head: 5 };
+export const CHAIN_O: Outfit = { jacket: "#f3f1ea", pants: "#3e3a40", boots: "#2a2228", hat: "hair", hair: "#2a1e1c", moustache: "#2a1e1c", buttons: "#c9c4b6", build: "stout", head: 6 };
+export const scholarO = (v: number): Outfit => {
+  const J = ["#3b4a63", "#5e4636", "#555a52", "#2f3a33", "#6b5a48", "#47404f"][v % 6];
+  const H = ["#4a3426", "#9a9a98", "#2e2420", "#c8b48a", "#6b4a30", "#dadada"][v % 6];
+  return { jacket: J, pants: mix(J, INK, 0.25), boots: "#2a2228", hat: v % 3 === 2 ? null : "hair", hair: H, tie: ["#7a2e3a", "#2f5b7a", "#5a6b2a"][v % 3],
+    moustache: v % 2 ? H : undefined, beard: v === 4 ? H : undefined, buttons: "#2a2228", head: v + 1, build: v === 3 ? "stout" : "adult" };
+};
+export const SOLDIER_44: Outfit = { jacket: "#6f6f45", pants: "#6a6842", boots: "#3a2c22", hat: "cap", cap: "#5d6539", buttons: "#3a3a28", head: 4 };
+export const MEDIC_O: Outfit = { jacket: "#efece2", pants: "#6a6842", boots: "#3a2c22", hat: "cap", cap: "#efece2", buttons: "#c9c4b6", head: 2 };
+
+// ---- petri dishes ----
+/** stack of glass dishes seen from the side (400 x 700): n dishes, lean = wobble angle (deg) */
+export const fxStack = (p: Pen, n: number, lean = 0) => {
+  const dh = 600 / n;
+  for (let i = 0; i < n; i++) {
+    const y = 680 - (i + 1) * dh, dx = Math.sin(i * 1.7) * 14 + lean * i * 1.1, cx = 200 + dx, w = 150 - (i % 3) * 6;
+    p.poly([[cx - w, y + dh * 0.15], [cx + w, y + dh * 0.15], [cx + w, y + dh * 0.95], [cx - w, y + dh * 0.95]], "#d7ecf0", 7);
+    p.poly([[cx - w + 10, y + dh * 0.45], [cx + w - 10, y + dh * 0.45], [cx + w - 10, y + dh * 0.9], [cx - w + 10, y + dh * 0.9]], "#efcd78", 0);
+    for (let k = 0; k < 6; k++) p.ell(cx - w + 30 + ((k * 47 + i * 29) % (2 * w - 60)), y + dh * 0.62, 11, 9, ["#e2620a", "#b8440a", "#f08a18"][k % 3], 3);
+    p.stroke([[cx - w + 14, y + dh * 0.25], [cx - w + 60, y + dh * 0.25]], 5, "rgba(255,255,255,0.9)");
+  }
+};
+/** a petri dish top-down (600 x 600): mould m 0..1 (fuzzy blue-green colony), clear ring c 0..1 (germs near it vanish) */
+export const fxDish = (p: Pen, m: number, c: number) => {
+  const C = 300, R = 270;
+  p.ell(C, C, R + 14, R + 14, "#dcecf2", 12);
+  p.ell(C, C, R - 6, R - 6, "#f0cf7a", 6);
+  const mx = C - 40, my = C - 20, ringR = 70 + 120 * m;
+  if (c > 0) p.ell(mx, my, ringR * (0.6 + 0.4 * c), ringR * (0.6 + 0.4 * c), mix("#f0cf7a", "#fbf0cc", c), 0);
+  for (let i = 0; i < 120; i++) {
+    const a = hrand(i) * Math.PI * 2, d = Math.sqrt(hrand(i + 500)) * (R - 30), x = C + Math.cos(a) * d, y = C + Math.sin(a) * d;
+    const dm = Math.hypot(x - mx, y - my);
+    let s = 6 + hrand(i + 900) * 9;
+    if (m > 0 && dm < ringR) s *= 1 - c;
+    if (m > 0 && dm < 70 * m + 10) continue;
+    if (s > 1) p.ell(x, y, s, s, ["#f4b02e", "#fff1b8", "#e8962a"][i % 3], 3);
+  }
+  if (m > 0) {
+    const rr = 70 * m;
+    for (let i = 0; i < 18; i++) { const a = (i / 18) * Math.PI * 2; p.ell(mx + Math.cos(a) * rr * 0.8, my + Math.sin(a) * rr * 0.8, rr * 0.36, rr * 0.36, "#f3f7ee", 0); }
+    p.ell(mx, my, rr, rr * 0.95, "#3f9a86", 6);
+    p.ell(mx - rr * 0.2, my - rr * 0.2, rr * 0.55, rr * 0.5, "#5cb59a", 0);
+    for (let i = 0; i < 26; i++) p.dot(mx + (hrand(i + 50) - 0.5) * rr * 1.6, my + (hrand(i + 80) - 0.5) * rr * 1.6, 5, "#2f7a6b");
+  }
+  p.arc(C, C, R - 30, R - 30, 200, 250, 14, "rgba(255,255,255,0.9)");
+};
+export const fxSuitcase = (p: Pen) => {
+  p.poly(rrect(20, 50, 280, 230, 22), "#a5653a", 10);
+  p.poly(rrect(110, 18, 190, 60, 14), null, 10);
+  for (const x of [80, 220]) p.poly(rrect(x - 12, 50, x + 12, 230, 4), "#6b3e24", 6);
+  p.ell(150, 150, 34, 24, "#e9d27a", 6); p.ell(150, 150, 14, 10, "#c0503a", 0);
+};
+/** conical flask (300 x 400): label 0..1, liquid colour, dust 0..1 */
+export const fxFlask = (p: Pen, label: number, liq = "#e7b93a", dust = 0) => {
+  const body: P2[] = [[120, 40], [180, 40], [180, 150], [270, 370], [30, 370], [120, 150]];
+  p.poly(body, "#e3f1f4", 0);
+  p.clip(body, () => p.poly([[0, 230], [300, 230], [300, 400], [0, 400]], liq, 0));
+  p.poly(body, null, 10);
+  p.ell(150, 30, 34, 22, "#f5f2ea", 8);
+  p.stroke([[140, 70], [140, 140]], 8, "rgba(255,255,255,0.9)");
+  if (label > 0) { const s = label; p.poly(rrect(150 - 100 * s, 270 - 32 * s, 150 + 100 * s, 270 + 32 * s, 10), "#fbf6e8", 6); if (s > 0.7) txt(p, "PENICILLIN", 150, 272, 31); }
+  if (dust > 0) { p.g.save(); p.g.globalAlpha = 0.55 * dust; p.poly(body, "#9a9184", 0); p.g.restore(); }
+};
+/** cobweb in a corner (300 x 300) */
+export const fxWeb = (p: Pen) => {
+  for (let i = 0; i <= 6; i++) { const a = (i / 6) * (Math.PI / 2); p.stroke([[0, 0], [Math.cos(a) * 290, Math.sin(a) * 290]], 3, "rgba(240,240,240,0.95)"); }
+  for (let r = 60; r < 290; r += 55) { const pts: P2[] = []; for (let i = 0; i <= 12; i++) { const a = (i / 12) * (Math.PI / 2); const rr = r * (0.9 + 0.1 * Math.cos(i * 3)); pts.push([Math.cos(a) * rr, Math.sin(a) * rr]); } p.stroke(pts, 3, "rgba(240,240,240,0.95)"); }
+};
+/** "0 likes" bubble (520 x 320) */
+export const fxLikes = (p: Pen) => {
+  p.poly([...rrect(20, 20, 500, 240, 60)], WHITE, 10);
+  p.poly([[120, 236], [90, 300], [190, 238]], WHITE, 0); p.stroke([[120, 238], [90, 300], [190, 240]], 10);
+  // thumbs up
+  p.poly(rrect(70, 120, 120, 210, 10), "#3b82d6", 8);
+  p.poly([[125, 120], [175, 120], [180, 60], [210, 64], [214, 120], [260, 124], [262, 210], [125, 210]], "#3b82d6", 8);
+  txt(p, "0", 380, 132, 170, "#3b3b4a");
+};
+/** wall calendar (300 x 380) showing a year */
+export const fxCalendar = (p: Pen, year: number) => {
+  p.poly(rrect(20, 30, 280, 360, 12), "#fbf7ec", 8);
+  p.poly(rrect(20, 30, 280, 110, 12), "#c0443c", 8);
+  for (const x of [80, 150, 220]) p.ell(x, 30, 10, 18, "#9a9aa0", 5);
+  txt(p, String(year), 150, 220, 92);
+  for (let i = 0; i < 4; i++) p.stroke([[50, 285 + i * 18], [250, 285 + i * 18]], 3, "#c9c0ad");
+};
+/** chalkboard (900 x 500): a dish with a clear ring, "Penicillin" */
+export const fxBoard = (p: Pen) => {
+  p.poly(rrect(10, 10, 890, 490, 14), "#7a5a3e", 10);
+  p.poly(rrect(40, 40, 860, 440, 6), "#2d4a3e", 6);
+  const ch = "rgba(240,240,232,0.92)";
+  p.arc(250, 240, 140, 140, 0, 360, 7, ch); p.arc(250, 240, 70, 70, 0, 360, 5, ch);
+  for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; p.dot(250 + Math.cos(a) * 112, 240 + Math.sin(a) * 112, 9, ch); }
+  p.dot(250, 240, 30, ch);
+  txt(p, "Penicillin", 630, 200, 74, ch, "italic bold");
+  p.stroke([[420, 250], [520, 250]], 6, ch); p.stroke([[495, 232], [520, 250], [495, 268]], 6, ch);
+  txt(p, "?", 640, 330, 90, ch);
+};
+/** an open journal (520 x 360): Fleming's 1929 paper */
+export const fxJournal = (p: Pen) => {
+  p.poly([[20, 40], [260, 60], [260, 340], [20, 320]], "#f3ead2", 8);
+  p.poly([[500, 40], [260, 60], [260, 340], [500, 320]], "#f6eed8", 8);
+  txt(p, "BRIT. J. EXP.", 140, 105, 30); txt(p, "PATHOLOGY", 140, 140, 30); txt(p, "1929", 140, 200, 54, "#8a3b36");
+  txt(p, "FLEMING", 380, 110, 38, "#8a3b36");
+  p.arc(380, 220, 70, 70, 0, 360, 6, INK); p.dot(380, 220, 22, "#3f9a86");
+  for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; p.dot(380 + Math.cos(a) * 54, 220 + Math.sin(a) * 54, 6, "#e8962a"); }
+  for (let i = 0; i < 3; i++) p.stroke([[60, 250 + i * 22], [230, 252 + i * 22]], 4, "#b9ae96");
+};
+/** a white mouse (200 x 140) at (x, y): mode "sick" | "dead" | "alive" */
+const mouse = (p: Pen, x: number, y: number, mode: string, s = 1) => {
+  const up = mode === "dead";
+  p.stroke([[x + 60 * s, y + 10 * s], [x + 95 * s, y - 5 * s], [x + 110 * s, y + 20 * s]], 6 * s, "#e7a4a8");
+  p.ell(x, y, 62 * s, up ? 34 * s : 40 * s, "#f6f3f0", 7 * s);
+  p.ell(x - 52 * s, y - 34 * s, 20 * s, 20 * s, "#f6f3f0", 6 * s); p.ell(x - 52 * s, y - 34 * s, 10 * s, 10 * s, "#efa6b0", 0);
+  p.ell(x - 22 * s, y - 40 * s, 20 * s, 20 * s, "#f6f3f0", 6 * s); p.ell(x - 22 * s, y - 40 * s, 10 * s, 10 * s, "#efa6b0", 0);
+  p.dot(x - 64 * s, y + 4 * s, 7 * s, "#e7848e");
+  if (up) {
+    for (const ex of [-44, -18]) { p.stroke([[x + (ex - 7) * s, y - 15 * s], [x + (ex + 7) * s, y - 1 * s]], 5 * s); p.stroke([[x + (ex + 7) * s, y - 15 * s], [x + (ex - 7) * s, y - 1 * s]], 5 * s); }
+    for (const lx of [-20, 10, 30]) p.stroke([[x + lx * s, y - 30 * s], [x + (lx - 6) * s, y - 62 * s]], 5 * s, "#e7a4a8"); // belly-up: legs in the air
+  } else if (mode === "sick") {
+    for (const ex of [-44, -18]) p.stroke([[x + (ex - 7) * s, y - 8 * s], [x + (ex + 7) * s, y - 8 * s]], 5 * s);
+  } else {
+    for (const ex of [-44, -18]) p.dot(x + ex * s, y - 10 * s, 6 * s);
+    p.arc(x - 31 * s, y + 6 * s, 10 * s, 7 * s, 20, 160, 4 * s, INK);
+  }
+};
+/** wire cage with 4 mice (600 x 460): mode sick | dead | alive, ph = hop phase 0..1, tag text */
+export const fxCage = (p: Pen, mode: string, ph: number, tag: string) => {
+  p.poly(rrect(20, 90, 580, 440, 16), "#3d4560", 10);
+  p.poly(rrect(20, 400, 580, 440, 10), "#c7a46a", 8);
+  for (let i = 0; i < 4; i++) {
+    const hop = mode === "alive" ? Math.abs(Math.sin((ph + i * 0.27) * Math.PI)) * 60 : 0;
+    mouse(p, 92 + i * 138, mode === "dead" ? 352 : 336 - hop, mode, 1.0);
+  }
+  for (let x = 60; x < 580; x += 40) p.stroke([[x, 92], [x, 400]], 3, "#7c8a92");
+  p.stroke([[20, 92], [580, 92]], 8, "#7c8a92");
+  p.poly(rrect(170, 388, 430, 456, 10), tag === "PENICILLIN" ? "#f2d77a" : "#f4efe2", 7);
+  txt(p, tag, 300, 423, tag.length > 9 ? 34 : 40);
+};
+export const fxSyringe = (p: Pen) => {
+  p.poly(rrect(60, 40, 300, 90, 10), "#e6f2f4", 8);
+  p.poly(rrect(70, 50, 210, 80, 6), "#e7b93a", 0);
+  p.stroke([[300, 65], [380, 65]], 5, "#8a9096");
+  p.stroke([[20, 65], [60, 65]], 12, "#8a9096"); p.stroke([[16, 40], [16, 90]], 12, "#8a9096");
+};
+/** wooden crate stencilled PENICILLIN (500 x 380) */
+export const fxCrate = (p: Pen, n = 0) => {
+  p.poly(rrect(20, 20, 480, 360, 8), "#b78a52", 10);
+  for (const y of [110, 270]) p.stroke([[24, y], [476, y]], 6, "#8a6038");
+  txt(p, "PENICILLIN", 250, 172, 64, "#3a2a20");
+  txt(p, n ? "U.S. ARMY" : "100,000 DOSES", 250, 228, 34, "#3a2a20");
+};
+// ---- microscopic cast ----
+/** the mould as a character (700 x 640): fuzzy blue-green blob with a face; puff 0..1 */
+export const fxMould = (p: Pen, expr: string, puff = 0) => {
+  const C = 350, cy = 360;
+  for (let i = 0; i < 22; i++) { const a = (i / 22) * Math.PI * 2; p.ell(C + Math.cos(a) * 250, cy + Math.sin(a) * 210, 60 + 14 * Math.sin(i * 3.1), 54, "#e9f4ee", 6); }
+  p.ell(C, cy, 255, 215, "#3f9a86", 0);
+  for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; p.ell(C + Math.cos(a) * 205, cy + Math.sin(a) * 170, 62, 56, "#4aa891", 0); }
+  p.ell(C - 40, cy - 60, 150, 100, "#5cb59a", 0);
+  for (let i = 0; i < 40; i++) p.dot(C + (hrand(i) - 0.5) * 440, cy + (hrand(i + 9) - 0.5) * 340, 6, "#2f7a6b");
+  for (const ex of [-70, 70]) { p.ell(C + ex, cy - 20, 34, 40, WHITE, 7); p.dot(C + ex + 6, cy - 14, 15); }
+  if (expr === "grin") { p.poly([[C - 90, cy + 50], [C + 90, cy + 50], [C + 60, cy + 115], [C - 60, cy + 115]], "#7a2a3a", 8); p.poly([[C - 80, cy + 52], [C + 80, cy + 52], [C + 72, cy + 70], [C - 72, cy + 70]], WHITE, 0); }
+  else if (expr === "puff") p.ell(C, cy + 80, 30, 34, "#7a2a3a", 8);
+  else p.arc(C, cy + 50, 70, 40, 20, 160, 9, INK);
+  for (const s of [-1, 1]) p.stroke([[C + s * 40, cy - 72], [C + s * 110, cy - 80 - 10 * puff]], 9);
+  if (puff > 0) for (let i = 0; i < 5; i++) p.ell(C + 170 + i * 60 * puff, cy + 20 - i * 30, 22 - i * 2, 26 - i * 2, "#f7d35a", 5);
+};
+/** a bacterium (520 x 520): wall 0..1 (brick ring built round it), crack 0..1, mood */
+export const fxBug = (p: Pen, wall: number, crack: number, mood: string, seed = 1) => {
+  const C = 260, r = 150;
+  if (crack >= 1) return;
+  p.ell(C, C, r, r * 0.92, mood === "worried" ? "#f2b25a" : "#f4a93a", 8);
+  p.ell(C - 40, C - 40, r * 0.45, r * 0.32, "#f8c86a", 0);
+  for (let i = 0; i < 5; i++) p.dot(C + (hrand(i + seed * 10) - 0.5) * 160, C + 40 + (hrand(i + seed * 20) - 0.5) * 70, 8, "#d07f22");
+  for (const ex of [-45, 45]) {
+    if (mood === "worried") { p.ell(C + ex, C - 20, 20, 24, WHITE, 6); p.dot(C + ex, C - 14, 9); p.stroke([[C + ex - 22, C - 58 + (ex > 0 ? 8 : -2)], [C + ex + 22, C - 58 + (ex > 0 ? -2 : 8)]], 7); }
+    else { p.ell(C + ex, C - 20, 20, 24, WHITE, 6); p.dot(C + ex + 4, C - 16, 9); }
+  }
+  if (mood === "worried") p.ell(C, C + 48, 18, 22, "#7a2a3a", 6); else p.arc(C, C + 30, 46, 30, 20, 160, 8, INK);
+  // brick wall: segments around the cell, built counter-clockwise from the bottom
+  const n = 22, built = Math.floor(n * wall);
+  for (let i = 0; i < built; i++) {
+    const a0 = Math.PI / 2 + (i / n) * Math.PI * 2, a1 = a0 + (Math.PI * 2) / n * 0.9;
+    const off = crack > 0 ? crack * 120 * (0.5 + hrand(i)) : 0, oa = (a0 + a1) / 2;
+    const ox = Math.cos(oa) * off, oy = Math.sin(oa) * off, R0 = r + 18, R1 = r + 62;
+    p.poly([[C + ox + Math.cos(a0) * R0, C + oy + Math.sin(a0) * R0], [C + ox + Math.cos(a0) * R1, C + oy + Math.sin(a0) * R1],
+      [C + ox + Math.cos(a1) * R1, C + oy + Math.sin(a1) * R1], [C + ox + Math.cos(a1) * R0, C + oy + Math.sin(a1) * R0]], i % 2 ? "#c0503a" : "#b04632", 6);
+  }
+};
+/** golden penicillin drop (120 x 160) */
+export const fxDropP = (p: Pen) => {
+  p.poly([[60, 10], [100, 90], [96, 120], [60, 150], [24, 120], [20, 90]], "#f2a516", 10);
+  p.ell(46, 100, 10, 18, "rgba(255,255,255,0.9)", 0);
+};
+/** popping bacterium fragments (520 x 520), t 0..1 */
+export const fxPop = (p: Pen, t: number) => {
+  const e = 1 - (1 - t) ** 3;
+  for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2 + 0.3; const d = 60 + 180 * e; p.ell(260 + Math.cos(a) * d, 260 + Math.sin(a) * d, 26 * (1 - t * 0.6), 18 * (1 - t * 0.6), i % 2 ? "#f4a93a" : "#c0503a", 5, 0, 360, (a * 180) / Math.PI); }
+};
+// ---- garden ----
+/** guardian plant (600 x 900): leaves + a fuzzy blue-green head with the mould's face */
+export const fxPlant = (p: Pen, expr: string) => {
+  p.stroke([[300, 880], [300, 420]], 22, "#3e7a3a");
+  for (const [y, s] of [[760, -1], [680, 1], [580, -1], [500, 1]] as [number, number][]) p.ell(300 + s * 120, y, 120, 46, "#4f9a44", 8, 0, 360, s * -25);
+  for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2; p.ell(300 + Math.cos(a) * 150, 260 + Math.sin(a) * 140, 52, 48, "#e9f4ee", 6); }
+  p.ell(300, 260, 160, 150, "#3f9a86", 0); p.ell(270, 220, 90, 70, "#5cb59a", 0);
+  for (const ex of [-50, 50]) { p.ell(300 + ex, 250, 24, 28, WHITE, 6); p.dot(300 + ex + 5, 254, 11); }
+  if (expr === "grin") { p.poly([[240, 310], [360, 310], [340, 350], [260, 350]], "#7a2a3a", 7); p.poly([[248, 312], [352, 312], [347, 324], [253, 324]], WHITE, 0); }
+  else p.arc(300, 300, 46, 26, 20, 160, 8, INK);
+  for (const s of [-1, 1]) p.stroke([[300 + s * 28, 205], [300 + s * 80, expr === "grin" ? 192 : 200]], 8);
+};
+/** a scraggly weed (300 x 420): k 0 = upright .. 1 = shrunk back and leaning away (dir -1/1) */
+export const fxWeed = (p: Pen, k: number, dir: number, seed: number) => {
+  const h = 360 * (1 - 0.45 * k), lean = dir * 70 * k, bx = 150, by = 410;
+  const top: P2 = [bx + lean, by - h];
+  p.stroke([[bx, by], [bx + lean * 0.3, by - h * 0.5], top], 12, "#8a6a3a");
+  for (let i = 0; i < 4; i++) { const t = 0.3 + i * 0.17, x = bx + lean * t * t, y = by - h * t, s = i % 2 ? 1 : -1; p.ell(x + s * 40, y, 46, 16, "#9a7444", 6, 0, 360, s * 30 + seed * 7); }
+  p.ell(top[0], top[1], 44, 40, "#a8804a", 7);
+  for (const ex of [-14, 14]) { p.ell(top[0] + ex, top[1] - 4, 9, 11, WHITE, 4); p.dot(top[0] + ex - dir * 3 * k, top[1] - 2, 4); }
+  p.ell(top[0], top[1] + 20, 8, 9 + 4 * k, "#5a2a2a", 4);
+};
+// ---- medal + sparkle + zzz ----
+export const fxMedal = (p: Pen) => {
+  p.poly([[60, 10], [120, 200], [180, 10]], "#2f5b9a", 8);
+  p.poly([[90, 10], [120, 110], [150, 10]], "#e9e2cf", 0);
+  p.ell(120, 290, 100, 100, "#f2c23a", 10); p.ell(120, 290, 74, 74, "#e0a92a", 6);
+  p.ell(108, 280, 30, 40, "#f6d66a", 0);
+};
+export const fxSparkle = (p: Pen, t = 0) => {
+  const s = 0.6 + 0.4 * Math.sin(t * Math.PI);
+  p.poly([[100, 100 - 90 * s], [114, 86], [100 + 90 * s, 100], [114, 114], [100, 100 + 90 * s], [86, 114], [100 - 90 * s, 100], [86, 86]], "#fffbe0", 5);
+};
+export const fxZzz = (p: Pen) => { txt(p, "z", 60, 160, 70, WHITE, "bold", "center", 10); txt(p, "Z", 130, 90, 100, WHITE, "bold", "center", 12); };
+export const fxMicroscope = (p: Pen) => {
+  p.poly(rrect(60, 340, 240, 380, 10), "#3a3238", 8);
+  p.stroke([[150, 340], [170, 230], [120, 120]], 26, "#3a3238");
+  p.poly([[95, 40], [145, 30], [175, 160], [125, 172]], "#c99a3a", 8);
+  p.poly(rrect(90, 250, 220, 270, 4), "#3a3238", 6);
+};

@@ -1,0 +1,26 @@
+// LIBRARY PART: small bedroom open toward +z: striped wallpaper, plank floor, skirting, bedside table (add a window/bed as fx cards)
+// Append to the END of the short's build.ts (below "library parts appended below"), then register in sets.ts:
+//   SETS.room = (c) => { buildRoom(c.root, [BX, 0, 0]); return { indoor: true }; };
+// Needs: nothing
+// Origin: Two Suns
+const paperTex = () => ctex("wallpaper", 256, 256, (g) => {
+  g.fillStyle = "#f3dcae"; g.fillRect(0, 0, 256, 256);
+  for (let x = 0; x < 256; x += 64) { g.fillStyle = "#ead0a0"; g.fillRect(x, 0, 28, 256); }
+  g.fillStyle = "#e2457a"; for (let y = 16; y < 256; y += 64) for (let x = 46; x < 256; x += 64) { g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); }
+});
+const floorTex = () => ctex("floorPlanks", 256, 256, (g) => {
+  for (let i = 0; i < 8; i++) { g.fillStyle = ["#b5835a", "#a8764e", "#bd8c62", "#a06e48"][i % 4]; g.fillRect(0, i * 32, 256, 32); g.fillStyle = "rgba(60,30,20,0.5)"; g.fillRect(0, i * 32, 256, 2); g.fillRect((i * 97) % 256, i * 32, 2, 32); }
+});
+/** a small bedroom open toward +z (the lens), origin at the floor centre */
+export const buildRoom = (root: THREE.Object3D, o: [number, number, number]) => {
+  const b = new Batch(), [x, y, z] = o;
+  const wall = lam("roomWall", () => ({ map: rep(paperTex(), 2, 1) })), floor = lam("roomFloor", () => ({ map: rep(floorTex(), 2, 2) }));
+  b.add(boxGeo(V(x - 2.4, y - 0.1, z - 1.8), V(x + 2.4, y, z + 2.2), 1), floor);
+  b.add(boxGeo(V(x - 2.4, y, z - 1.9), V(x + 2.4, y + 2.8, z - 1.8), 0), wall);
+  for (const s of [-1, 1]) b.add(boxGeo(V(x + s * 2.4 - 0.05, y, z - 1.9), V(x + s * 2.4 + 0.05, y + 2.8, z + 2.2), 0), wall);
+  b.add(boxGeo(V(x - 2.45, y + 2.8, z - 1.95), V(x + 2.45, y + 2.9, z + 2.2), 0, true), lam("roomCeil", () => ({ color: "#efe0c4" })));
+  b.add(boxGeo(V(x - 2.4, y, z - 1.8), V(x + 2.4, y + 0.12, z - 1.75)), lam("skirting", () => ({ color: "#8a5a3a" })));
+  // bedside table
+  b.add(boxGeo(V(x + 1.35, y, z - 1.4), V(x + 1.85, y + 0.55, z - 0.9)), lam("benchWood", () => ({ color: "#a8724a" })));
+  b.build(root, false);
+};

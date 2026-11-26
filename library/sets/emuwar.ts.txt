@@ -1,0 +1,198 @@
+// LIBRARY PART: Emu War sets + 3D props - buildWheat(c) a Western Australian wheat-belt farm c.1932 (golden wheat stalk clumps,
+// ridge, red dirt road along x at STORY.ROADZ, post-and-wire fence at STORY.FENCEZ with a broken gap at STORY.GAPX, weatherboard
+// homestead with corrugated-iron roof + verandah + table (STORY.HOME, STORY.TABLE), rainwater tank, mailbox (STORY.MAILBOX), dam pond
+// with red bank + reeds + dead trees (STORY.DAM), gum trees); buildOfficeAU(root, X) 1930s office (needs wall_dressing). 3D: lewisGun()
+// (-z barrel), truck3d() {g, body} 1930s army truck (+z) with a gun post, sackPile(p). Append to build.ts AFTER wall_dressing + lab_props3d.
+// Register: see Emu War sets.ts (wheatSet poses guns + truck from STORY.gunsAt / STORY.truckAt). Origin: Emu War (2026-11-23)
+
+// ======================= Emu War short: its own sets + 3D hero props (2026-11-23) =======================
+// buildWheat: a Western Australian wheat-belt farm c. 1932 at the origin - golden wheat field (clumps) with a low
+// ridge to the north, red dirt road along x at z = ROADZ, a post-and-wire fence at z = FENCEZ with a broken gap,
+// a weatherboard homestead with a corrugated-iron roof, verandah + table and a rainwater tank, a dam (pond) to the
+// west with a red earth bank and reeds, a mailbox, far gum trees and hills. buildOfficeAU: a 1930s minister's office.
+// lewisGun(): a 3D Lewis gun (finned shroud, pan magazine, wooden stock, bipod), pointing -z. truck3d(): a 1930s army
+// truck with a gun post on its bed, facing +z. sackPile(): wheat sacks to rest a gun on.
+const corrugated = (base: string) => ctex("ewCorr" + base, 256, 256, (g) => {
+  g.fillStyle = base; g.fillRect(0, 0, 256, 256);
+  for (let x = 0; x < 256; x += 16) { const gr = g.createLinearGradient(x, 0, x + 16, 0); gr.addColorStop(0, "rgba(255,255,255,0.22)"); gr.addColorStop(0.5, "rgba(0,0,0,0.0)"); gr.addColorStop(1, "rgba(0,0,0,0.25)"); g.fillStyle = gr; g.fillRect(x, 0, 16, 256); }
+  g.fillStyle = "rgba(150,80,40,0.18)"; for (let i = 0; i < 18; i++) g.fillRect((i * 53) % 256, (i * 97) % 256, 6 + (i % 4) * 4, 10 + (i % 5) * 6);
+});
+const boards = (base: string) => ctex("ewBoards" + base, 256, 256, (g) => {
+  g.fillStyle = base; g.fillRect(0, 0, 256, 256);
+  for (let y = 0; y < 256; y += 32) { g.fillStyle = "rgba(60,40,30,0.32)"; g.fillRect(0, y + 28, 256, 4); g.fillStyle = "rgba(255,255,255,0.15)"; g.fillRect(0, y, 256, 3); }
+});
+const stubble = () => ctex("ewStubble", 512, 512, (g, r) => {
+  g.fillStyle = "#d8b062"; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 2600; i++) { const x = r() * 512, y = r() * 512; g.strokeStyle = r() > 0.5 ? "rgba(250,225,150,0.6)" : "rgba(150,105,50,0.45)"; g.lineWidth = 1.5 + r() * 1.5; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 6, y - 4 - r() * 8); g.stroke(); }
+  for (let i = 0; i < 60; i++) { g.fillStyle = "rgba(190,110,60,0.25)"; g.beginPath(); g.ellipse(r() * 512, r() * 512, 10 + r() * 30, 6 + r() * 14, r() * 3, 0, 7); g.fill(); }
+});
+const redDirt = () => ctex("ewRedDirt", 512, 512, (g, r) => {
+  g.fillStyle = "#c46e3c"; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 900; i++) { g.fillStyle = r() > 0.5 ? "rgba(230,150,95,0.4)" : "rgba(120,55,30,0.35)"; g.beginPath(); g.ellipse(r() * 512, r() * 512, 2 + r() * 6, 1 + r() * 3, 0, 0, 7); g.fill(); }
+  g.fillStyle = "rgba(235,170,120,0.35)"; g.fillRect(0, 150, 512, 40); g.fillRect(0, 330, 512, 40);
+});
+type Rect = [number, number, number, number];
+const inRect = (x: number, z: number, R: Rect[]) => R.some(([x0, x1, z0, z1]) => x >= x0 && x <= x1 && z >= z0 && z <= z1);
+export const buildWheat = (c: { root: THREE.Object3D; kit: Kit; water: (g: THREE.BufferGeometry) => void }) => {
+  const b = new Batch(), r = rng(1932), S = STORY as any;
+  const RZ = S.ROADZ as number, FZ = S.FENCEZ as number, GX = S.GAPX as number, H = S.HOME, D = S.DAM as V3, T = S.TABLE as V3, M = S.MAILBOX as V3;
+  b.add(new THREE.PlaneGeometry(600, 600).rotateX(-Math.PI / 2).translate(0, 0, -60), lam("ewGround", () => ({ map: rep(stubble(), 90, 90) })));
+  b.add(new THREE.PlaneGeometry(600, 4.2).rotateX(-Math.PI / 2).translate(0, 0.012, RZ), lam("ewRoad", () => ({ map: rep(redDirt(), 140, 1) })));
+  // the ridge the flock comes over, and far low hills
+  const gold = lam("ewRidge", () => ({ map: rep(stubble(), 30, 6), color: "#f4d48a" }));
+  b.add(new THREE.SphereGeometry(1, 40, 14).scale(70, 3.2, 12).translate(0, -0.6, -46), gold);
+  for (const [x, z, rx, ry] of [[-120, -170, 110, 16], [40, -190, 140, 20], [170, -160, 90, 14], [-210, -60, 70, 10], [220, -40, 70, 12]] as const)
+    b.add(new THREE.SphereGeometry(1, 28, 12).scale(rx, ry, 30).translate(x, -2, z), lam("ewHill", () => ({ color: "#c99a5c" })));
+  // wheat clumps (golden cones), leaving the shot clearings open
+  const wheat = [lam("ewWheat0", () => ({ color: "#efc45a" })), lam("ewWheat1", () => ({ color: "#e2ad44" })), lam("ewWheat2", () => ({ color: "#f6d77a" }))];
+  const clear: Rect[] = [[-3, 3, -1.8, 4.5], [-3.5, 1.5, -11, -7], [GX - 7, GX + 6, 1.5, FZ], [-1, 3.2, 0.5, 4.2]];
+  const cone = new THREE.ConeGeometry(0.2, 1, 6, 1);
+  for (let i = 0; i < 4200; i++) {
+    const x = -48 + 96 * r(), z = -44 + 52 * r();
+    if (z > FZ - 0.6 || inRect(x, z, clear)) continue;
+    const h = 0.75 + 0.3 * r();
+    b.add(cone.clone().scale(1 + r() * 0.6, h, 1 + r() * 0.6).translate(x, h / 2, z), wheat[i % 3]);
+  }
+  // the eaten strip by the fence: short stubble tufts, trampled
+  for (let i = 0; i < 160; i++) { const x = GX - 7 + 13 * r(), z = 1.5 + (FZ - 2) * r(), h = 0.15 + 0.2 * r(); b.add(cone.clone().scale(0.8, h, 0.8).translate(x, h / 2, z), wheat[1]); }
+  // post-and-wire fence with a broken gap
+  const post = lam("ewPost", () => ({ color: "#8a6a4a" })), wire = lam("ewWire", () => ({ color: "#5a5660" }));
+  for (let x = -60; x <= 60; x += 3) b.add(new THREE.CylinderGeometry(0.06, 0.07, 1.15, 6).translate(x, 0.575, FZ), post);
+  for (const y of [0.35, 0.65, 0.95]) {
+    b.add(boxGeo(V(-60, y - 0.008, FZ - 0.008), V(GX - 1.5, y + 0.008, FZ + 0.008)), wire);
+    b.add(boxGeo(V(GX + 1.5, y - 0.008, FZ - 0.008), V(60, y + 0.008, FZ + 0.008)), wire);
+    // broken ends sagging toward the ground
+    b.add(new THREE.CylinderGeometry(0.008, 0.008, 0.8, 4).rotateZ(1.1 - y).translate(GX - 1.2, y * 0.6, FZ), wire);
+    b.add(new THREE.CylinderGeometry(0.008, 0.008, 0.8, 4).rotateZ(-1.1 + y).translate(GX + 1.2, y * 0.6, FZ), wire);
+  }
+  // the homestead: weatherboard house, corrugated roof, verandah with posts + table, rainwater tank
+  const wall = lam("ewWall", () => ({ map: rep(boards("#efe2c4"), 3, 1.2) })), iron = lam("ewIron", () => ({ map: rep(corrugated("#a9afb6"), 6, 3) }));
+  const hx0 = H.x - 3.5, hx1 = H.x + 3.5, hz0 = H.z, hz1 = H.z + 5;
+  b.add(boxGeo(V(hx0, 0, hz0), V(hx1, 2.7, hz1)), wall);
+  const roof = new THREE.BufferGeometry(); // gable along x
+  const rv = [hx0 - 0.3, 2.7, hz0 - 0.3, hx1 + 0.3, 2.7, hz0 - 0.3, hx1 + 0.3, 4.3, (hz0 + hz1) / 2, hx0 - 0.3, 4.3, (hz0 + hz1) / 2,
+    hx0 - 0.3, 2.7, hz1 + 0.3, hx1 + 0.3, 2.7, hz1 + 0.3];
+  roof.setAttribute("position", new THREE.Float32BufferAttribute(rv, 3));
+  roof.setAttribute("uv", new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0], 2));
+  roof.setIndex([0, 1, 2, 0, 2, 3, 5, 4, 3, 5, 3, 2]); roof.computeVertexNormals();
+  b.add(roof, iron);
+  for (const x of [hx0, hx1]) { const gab = new THREE.BufferGeometry(); gab.setAttribute("position", new THREE.Float32BufferAttribute([x, 2.7, hz0, x, 2.7, hz1, x, 4.3, (hz0 + hz1) / 2], 3)); gab.setIndex(x === hx0 ? [0, 1, 2] : [0, 2, 1]); gab.computeVertexNormals(); b.add(gab, wall); }
+  const deck = lam("ewDeck", () => ({ map: rep(boards("#a7774a"), 4, 1) }));
+  b.add(boxGeo(V(hx0 - 0.4, 0, hz0 - 1.6), V(hx1 + 0.4, H.floor, hz0)), deck);
+  const vroof = lam("ewVroof", () => ({ map: rep(corrugated("#b5bbc2"), 6, 1), side: THREE.DoubleSide }));
+  const vr = new THREE.PlaneGeometry(hx1 - hx0 + 0.8, 1.75).rotateX(-Math.PI / 2 + 0.16).translate(H.x, 2.5, hz0 - 0.82); b.add(vr, vroof);
+  const wood = lam("ewWood", () => ({ color: "#efe8d8" }));
+  for (const x of [hx0 - 0.3, H.x, hx1 + 0.3]) b.add(boxGeo(V(x - 0.06, H.floor, hz0 - 1.55), V(x + 0.06, 2.4, hz0 - 1.43)), wood);
+  b.add(boxGeo(V(hx0 - 0.35, 0.95, hz0 - 1.53), V(hx1 + 0.35, 1.0, hz0 - 1.47)), wood);
+  const dark = lam("ewWin", () => ({ color: "#3a3446" })), green = lam("ewTrim", () => ({ color: "#3f6a4a" }));
+  b.add(new THREE.PlaneGeometry(0.95, 2.0).translate(H.x - 1.6, H.floor + 1.0, hz0 - 0.01), green);
+  for (const x of [H.x + 0.6, H.x + 2.3]) { b.add(new THREE.PlaneGeometry(1.0, 1.0).translate(x, 1.65, hz0 - 0.01), dark); b.add(new THREE.PlaneGeometry(1.2, 0.08).translate(x, 2.2, hz0 - 0.015), green); }
+  const tbl = lam("ewTable", () => ({ map: rep(boards("#b07a46"), 1, 1) }));
+  b.add(boxGeo(V(T[0] - 0.65, T[1] + 0.7, T[2] - 0.38), V(T[0] + 0.65, T[1] + 0.75, T[2] + 0.38)), tbl);
+  for (const [dx, dz] of [[-0.58, -0.32], [0.58, -0.32], [-0.58, 0.32], [0.58, 0.32]]) b.add(boxGeo(V(T[0] + dx - 0.03, T[1], T[2] + dz - 0.03), V(T[0] + dx + 0.03, T[1] + 0.7, T[2] + dz + 0.03)), tbl);
+  const tank = lam("ewTank", () => ({ map: rep(corrugated("#c3c8cc"), 4, 1) }));
+  b.add(new THREE.CylinderGeometry(1.1, 1.1, 2.3, 24).translate(hx1 + 1.6, 1.35, hz0 + 1.2), tank);
+  b.add(new THREE.ConeGeometry(1.15, 0.35, 24).translate(hx1 + 1.6, 2.68, hz0 + 1.2), tank);
+  b.add(new THREE.CylinderGeometry(1.2, 1.2, 0.2, 24).translate(hx1 + 1.6, 0.1, hz0 + 1.2), lam("ewStand", () => ({ color: "#8a6a4a" })));
+  // mailbox: a post with a kerosene-tin box
+  b.add(boxGeo(V(M[0] - 0.05, 0, M[2] - 0.05), V(M[0] + 0.05, 1.0, M[2] + 0.05)), post);
+  b.add(boxGeo(V(M[0] - 0.22, 1.0, M[2] - 0.17), V(M[0] + 0.22, 1.3, M[2] + 0.17)), lam("ewTin", () => ({ color: "#c94a3a" })));
+  // the dam: water, a red earth bank, reeds, dead trees
+  c.water(new THREE.CircleGeometry(7.5, 48).rotateX(-Math.PI / 2).translate(D[0], 0.06, D[2]));
+  const bank = lam("ewBank", () => ({ map: rep(redDirt(), 6, 2) }));
+  b.add(new THREE.TorusGeometry(8.6, 1.4, 8, 48).rotateX(Math.PI / 2).scale(1, 1, 1).translate(D[0], -0.55, D[2]), bank);
+  b.add(new THREE.CircleGeometry(12, 48).rotateX(-Math.PI / 2).translate(D[0], 0.02, D[2]), lam("ewMud", () => ({ map: rep(redDirt(), 8, 8), color: "#d89a70" })));
+  const reed = lam("ewReed", () => ({ color: "#6f8a4a" }));
+  for (let i = 0; i < 120; i++) { const a = r() * Math.PI * 2, rr = 7.2 + r() * 0.9, h = 0.6 + r() * 0.7; if (Math.cos(a) > 0.55 && Math.sin(a) > 0.2) continue; b.add(new THREE.ConeGeometry(0.05, h, 4).translate(D[0] + Math.cos(a) * rr, h / 2, D[2] + Math.sin(a) * rr), reed); }
+  const deadwood = lam("ewDead", () => ({ color: "#d8d2c8" }));
+  for (const [dx, dz, h] of [[-11, -6, 6], [9, -9, 5]] as const) {
+    b.add(new THREE.CylinderGeometry(0.12, 0.22, h, 7).translate(D[0] + dx, h / 2, D[2] + dz), deadwood);
+    b.add(new THREE.CylinderGeometry(0.05, 0.1, h * 0.5, 6).rotateZ(0.8).translate(D[0] + dx + 0.6, h * 0.75, D[2] + dz), deadwood);
+    b.add(new THREE.CylinderGeometry(0.05, 0.1, h * 0.45, 6).rotateZ(-0.9).translate(D[0] + dx - 0.55, h * 0.65, D[2] + dz), deadwood);
+  }
+  // gum trees: on the horizon, along the road, by the house and the dam
+  for (let i = 0; i < 60; i++) prop(b, c.kit, r() > 0.4 ? "tree-high-round" : "tree_fat", -150 + 300 * r(), 0, -70 - 40 * r(), 9 + 6 * r(), r() * 6);
+  for (let i = 0; i < 14; i++) { const x = -140 + 280 * r(); if (Math.abs(x - 5) < 25) continue; prop(b, c.kit, "tree-high-round", x, 0, RZ + 6 + 8 * r(), 8 + 5 * r(), r() * 6); }
+  for (const [x, z, h] of [[H.x + 9, H.z + 7, 11], [H.x - 8, H.z + 6, 9], [D[0] - 16, D[2] - 10, 10], [D[0] + 14, D[2] - 14, 12]] as const) prop(b, c.kit, "tree-high-round", x, 0, z, h, x);
+  for (let i = 0; i < 26; i++) prop(b, c.kit, "plant_bushLarge", -90 + 60 * r(), 0, -10 - 30 * r(), 0.8 + 0.6 * r(), r() * 6);
+  b.build(c.root);
+};
+
+/** a pile of wheat sacks (top ~0.82 m) at p */
+export const sackPile = (p: V3) => {
+  const g = new THREE.Group(), m = phong("ewSack", { color: "#cdb07a", specular: "#3a3020", shininess: 8 }), tie = phong("ewTie", { color: "#8a6a3a", specular: "#222", shininess: 5 });
+  const put = (x: number, y: number, z: number, ry: number) => {
+    const s = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10).scale(0.42, 0.17, 0.26), m); s.position.set(x, y, z); s.rotation.y = ry; s.castShadow = true; g.add(s);
+    const t = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.018, 6, 16), tie); t.position.set(x + 0.36 * Math.cos(ry), y + 0.02, z - 0.36 * Math.sin(ry)); t.rotation.y = ry + Math.PI / 2; g.add(t);
+  };
+  put(-0.42, 0.16, 0.05, 0.1); put(0.42, 0.16, -0.05, -0.08); put(0, 0.16, 0.42, 1.6);
+  put(-0.2, 0.46, 0.0, -0.05); put(0.24, 0.46, 0.08, 0.12); put(0.02, 0.72, 0.02, 0.0);
+  g.position.set(...p); return g;
+};
+/** a 3D Lewis gun, barrel along -z, receiver at the origin (bipod feet ~0.27 m below) */
+export const lewisGun = () => {
+  const g = new THREE.Group();
+  const steel = phong("ewSteel", { color: "#2c2d34", specular: "#a8b0c0", shininess: 60 }), steel2 = phong("ewSteel2", { color: "#3d3f48", specular: "#c0c8d8", shininess: 80 });
+  const woodM = phong("ewStock", { color: "#9a6236", specular: "#e0b080", shininess: 30 });
+  const cyl = (r0: number, r1: number, z0: number, z1: number, m: THREE.Material, y = 0) => { const c = new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, z1 - z0, 20).rotateX(Math.PI / 2).translate(0, y, (z0 + z1) / 2), m); c.castShadow = true; g.add(c); return c; };
+  cyl(0.066, 0.066, -0.92, -0.14, steel);                     // the fat cooling shroud
+  for (let i = 0; i < 7; i++) cyl(0.071, 0.071, -0.86 + i * 0.1, -0.84 + i * 0.1, steel2); // shroud bands
+  cyl(0.045, 0.066, -1.0, -0.92, steel);                      // tapering mouth
+  cyl(0.016, 0.016, -1.08, -1.0, steel2);                     // muzzle
+  const rec = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 0.36).translate(0, 0, 0.04), steel); rec.castShadow = true; g.add(rec);
+  const pan = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.05, 32).translate(0, 0.1, -0.02), steel2); pan.castShadow = true; g.add(pan);
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.07, 12).translate(0, 0.12, -0.02), woodM); g.add(hub);
+  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2, s = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.055, 0.11), steel); s.position.set(Math.cos(a) * 0.1, 0.1, -0.02 + Math.sin(a) * 0.1); s.rotation.y = -a; g.add(s); }
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.12, 0.42).translate(0, -0.03, 0.42), woodM); stock.rotation.x = 0.12; stock.castShadow = true; g.add(stock);
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.13, 0.06).translate(0, -0.1, 0.17), woodM); grip.rotation.x = -0.3; g.add(grip);
+  for (const sx of [-1, 1]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.34, 6), steel2); l.position.set(sx * 0.09, -0.14, -0.66); l.rotation.z = sx * 0.45; l.rotation.x = -0.2; g.add(l); }
+  g.scale.setScalar(1.25);
+  return g;
+};
+/** a 1930s army truck facing +z, ground at y 0; bed floor at y 1.0; a gun post with a Lewis gun on the bed, aiming over the cab */
+export const truck3d = () => {
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const olive = phong("ewOlive", { color: "#5f6a44", specular: "#9aa080", shininess: 25 }), black = phong("ewTyre", { color: "#23222a", specular: "#555", shininess: 10 });
+  const chrome = phong("ewChrome", { color: "#c8ccd4", specular: "#ffffff", shininess: 90 }), glass = phong("ewGlass", { color: "#9fc4d8", specular: "#ffffff", shininess: 100, transparent: true, opacity: 0.55 });
+  const deckM = phong("ewBed", { color: "#8a6a44", specular: "#c0a080", shininess: 15 });
+  const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, m: THREE.Material) => { const b = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0).translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), m); b.castShadow = true; body.add(b); return b; };
+  box(-0.75, 0.75, 0.55, 0.75, -2.6, 2.7, black);                 // chassis
+  box(-0.8, 0.8, 0.75, 2.15, 0.35, 1.45, olive);                  // cab
+  box(-0.62, 0.62, 1.55, 2.0, 1.44, 1.47, glass);                 // windscreen
+  box(-0.55, 0.55, 0.75, 1.55, 1.45, 2.7, olive);                 // bonnet
+  box(-0.5, 0.5, 0.8, 1.45, 2.7, 2.75, chrome);                   // radiator
+  for (const sx of [-1, 1]) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8).translate(sx * 0.62, 1.35, 2.62), chrome); body.add(l); }
+  box(-0.9, 0.9, 0.95, 1.0, -2.6, 0.35, deckM);                    // bed floor (top 1.0)
+  for (const sx of [-1, 1]) box(sx > 0 ? 0.85 : -0.9, sx > 0 ? 0.9 : -0.85, 1.0, 1.35, -2.6, 0.35, deckM);
+  box(-0.9, 0.9, 1.0, 1.35, -2.6, -2.55, deckM);
+  box(-0.05, 0.05, 1.0, 1.85, -0.55, -0.45, olive);              // gun post
+  const gun = lewisGun(); gun.position.set(0, 2.0, -0.5); gun.rotation.y = Math.PI; body.add(gun);
+  const wheels: THREE.Mesh[] = [];
+  for (const z of [1.9, -1.6]) for (const sx of [-1, 1]) {
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.26, 24).rotateZ(Math.PI / 2).translate(sx * 0.82, 0.45, z), black); w.castShadow = true; g.add(w); wheels.push(w);
+    const hubc = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.28, 16).rotateZ(Math.PI / 2).translate(sx * 0.82, 0.45, z), olive); g.add(hubc);
+    const fender = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.3, 20, 1, true, 0, Math.PI).rotateZ(Math.PI / 2).rotateY(Math.PI / 2).translate(sx * 0.82, 0.5, z), olive); fender.rotation.set(0, 0, 0); body.add(fender);
+  }
+  return { g, body };
+};
+
+/** a 1930s minister's office at x = X: carpet, wood-panelled walls, a big desk with a green leather top, a window */
+export const buildOfficeAU = (root: THREE.Object3D, X: number) => {
+  const b = new Batch();
+  b.add(new THREE.PlaneGeometry(14, 12).rotateX(-Math.PI / 2).translate(X, 0, 0), lam("ewCarpet", () => ({ color: "#8a3434" })));
+  const panel = lam("ewPanel", () => ({ map: rep(boards("#8a5a36"), 4, 3) }));
+  b.add(new THREE.PlaneGeometry(14, 5).translate(X, 2.5, -2.6), panel);
+  b.add(new THREE.PlaneGeometry(12, 5).rotateY(Math.PI / 2).translate(X - 3.2, 2.5, 3.4), panel);
+  b.add(new THREE.PlaneGeometry(12, 5).rotateY(-Math.PI / 2).translate(X + 3.2, 2.5, 3.4), panel);
+  b.add(new THREE.PlaneGeometry(14, 1.0).translate(X, 0.5, -2.59), lam("ewDado", () => ({ color: "#5a3a24" })));
+  b.add(new THREE.PlaneGeometry(1.4, 1.8).rotateY(Math.PI / 2).translate(X - 3.19, 1.9, -0.4), lam("ewSky", () => ({ color: "#cfe6f4" })));
+  const D = (STORY as any).DESK;
+  const desk = lam("ewDesk", () => ({ map: rep(boards("#6a4024"), 2, 1) }));
+  b.add(boxGeo(V(X - 0.85, 0, D.z - 0.4), V(X + 0.85, D.top - 0.04, D.z + 0.4)), desk);
+  b.add(boxGeo(V(X - 0.9, D.top - 0.04, D.z - 0.44), V(X + 0.9, D.top, D.z + 0.44)), desk);
+  b.add(new THREE.PlaneGeometry(1.4, 0.6).rotateX(-Math.PI / 2).translate(X, D.top + 0.003, D.z), lam("ewLeather", () => ({ color: "#2f5a3e" })));
+  b.add(new THREE.CylinderGeometry(0.05, 0.06, 0.08, 12).translate(X + 0.55, D.top + 0.04, D.z - 0.15), lam("ewInk", () => ({ color: "#1c1c28" })));
+  b.build(root);
+  wallArt(root, "portrait", [X - 1.6, 2.05, -2.57], 0.7, 0.9, 0, 3);
+  wallArt(root, "clock", [X + 2.2, 2.6, -2.57], 0.5, 0.5, 0, 4);
+};

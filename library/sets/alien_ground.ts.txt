@@ -1,0 +1,25 @@
+// LIBRARY PART: hot alien/Venus surface: cracked rock plain, scattered stones, far mesas (use light "venus": orange murk, fog 3-40 m)
+// Append to the END of the short's build.ts (below "library parts appended below"), then register in sets.ts:
+//   SETS.venus = (c) => { buildVenus(c.root, VS(0, 0, 0)); return {}; };
+// Needs: light "venus"; place far away (e.g. z = -8000).
+// Origin: Two Suns
+const venusGround = () => ctex("venusGround", 512, 512, (g, r) => {
+  g.fillStyle = "#9a5a32"; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 260; i++) { g.fillStyle = ["rgba(70,35,20,0.35)", "rgba(190,110,60,0.35)", "rgba(120,60,35,0.4)"][i % 3]; const s = 6 + r() * 40; g.beginPath(); g.ellipse(r() * 512, r() * 512, s, s * 0.5, r() * 3, 0, 7); g.fill(); }
+  g.strokeStyle = "rgba(50,22,12,0.5)"; g.lineWidth = 3;
+  for (let i = 0; i < 30; i++) { let x = r() * 512, y = r() * 512; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 5; k++) { x += (r() - 0.5) * 60; y += (r() - 0.5) * 60; g.lineTo(x, y); } g.stroke(); }
+});
+/** the Venus surface: cracked rock plain, scattered stones, far mesas in the orange haze */
+export const buildVenus = (root: THREE.Object3D, c: [number, number, number]) => {
+  const b = new Batch(), r = rng(31), [x, y, z] = c;
+  b.add(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2).translate(x, y, z), lam("venusGround", () => ({ map: rep(venusGround(), 60, 60) })));
+  const rock = lam("venusRock", () => ({ color: "#7a4428" }));
+  for (let i = 0; i < 90; i++) {
+    const a = r() * Math.PI * 2, d = 0.6 + r() * r() * 40, s = 0.05 + r() * (0.08 + d * 0.04);
+    const px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d;
+    if (Math.abs(px - x) < 0.5 && pz - z > -0.4 && pz - z < 1.6) continue; // keep the lens path clear
+    b.add(new THREE.DodecahedronGeometry(1, 0).scale(s, s * 0.6, s * 1.1).rotateY(r() * 6).translate(px, y + s * 0.2, pz), rock);
+  }
+  for (let i = 0; i < 6; i++) b.add(new THREE.CylinderGeometry(10 + r() * 10, 14 + r() * 10, 6 + r() * 6, 7).translate(x - 60 + i * 24, y + 3, z - 70 - r() * 40), rock);
+  b.build(root);
+};

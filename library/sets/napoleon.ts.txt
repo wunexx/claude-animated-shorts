@@ -1,0 +1,77 @@
+// LIBRARY PART: Napoleon short sets - meadowSet(X, road) French countryside meadow (lawn, rolling hills, tree lines,
+// far chateau with slate roofs, rail fence, flowers; road=true adds a dirt road along x at z 0) and dogParkSet(X) (modern
+// city dog park: lawn, green fence, bench, lamps, trees, far apartment blocks). Append to build.ts; import grassHD from paint.
+// Register: SETS.meadow = meadowSet(0); SETS.road = meadowSet(-3000, true); SETS.dogpark = dogParkSet(3000). Origin: Napoleon (2026-11-20)
+
+// ======================= Napoleon short: its own sets =======================
+const U02 = (r: () => number, a: number, b: number) => a + (b - a) * r();
+/** French countryside meadow at x = X: a big lawn, soft rolling hills, tree lines, a far chateau with slate roofs,
+ *  a wooden rail fence; road = a dirt road along x at z = 0 (the carriage). Napoleon stands at (X, 0, 0). */
+export const meadowSet = (X: number, road = false) => (c: { root: THREE.Object3D; kit: Kit }) => {
+  const b = new Batch(), r = rng(road ? 77 : 41);
+  b.add(new THREE.PlaneGeometry(320, 320).rotateX(-Math.PI / 2).translate(X, 0, -60), lam("mdGrass", () => ({ map: rep(grassHD(), 80, 80) })));
+  if (road) b.add(new THREE.PlaneGeometry(320, 3.6).rotateX(-Math.PI / 2).translate(X, 0.01, 0), lam("mdRoad", () => ({ color: "#d9b77e" })));
+  const hill = lam("mdHill", () => ({ map: rep(grassHD(), 14, 6) }));
+  for (const [dx, z, rx, ry] of [[-90, -150, 90, 22], [10, -170, 110, 26], [120, -150, 90, 20], [-180, -110, 70, 16], [190, -100, 70, 18]] as const)
+    b.add(new THREE.SphereGeometry(1, 28, 12).scale(rx, ry, 30).translate(X + dx, -2, z), hill);
+  // the chateau: three wings + slate roofs, far behind the meadow
+  const wall = lam("mdWall", () => ({ map: rep(stoneHD(), 4, 2) })), slate = lam("mdSlate", () => ({ color: "#4f5a72" }));
+  const cx = X - 18, cz = -62;
+  for (const [dx, w, h, d] of [[0, 18, 9, 7], [-11, 5, 11, 7], [11, 5, 11, 7]] as const) {
+    b.add(boxGeo(V(cx + dx - w / 2, 0, cz - d / 2), V(cx + dx + w / 2, h, cz + d / 2)), wall);
+    b.add(new THREE.ConeGeometry(Math.max(w, d) * 0.72, h * 0.55, 4).rotateY(Math.PI / 4).scale(w / Math.max(w, d), 1, d / Math.max(w, d)).translate(cx + dx, h + h * 0.27, cz), slate);
+  }
+  const win = lam("mdWin", () => ({ color: "#2f3a55" }));
+  for (let i = 0; i < 7; i++) for (const y of [2.2, 5.6]) b.add(new THREE.PlaneGeometry(1.1, 1.8).translate(cx - 7.2 + i * 2.4, y, cz + 3.52), win);
+  // tree lines and scattered trees (cartoon vegetation; sight-line culling leaves out any that block a lens)
+  for (let i = 0; i < 46; i++) prop(b, c.kit, r() > 0.3 ? "tree_oak" : "tree_fat", X + U02(r, -70, 70), 0, U02(r, -40, -26), U02(r, 7, 12), r() * 6);
+  for (let i = 0; i < 24; i++) {
+    const x = U02(r, -40, 40), z = U02(r, -24, 30);
+    if (Math.abs(x) < 9 && z > -16) continue; // keep the hunting ground open
+    prop(b, c.kit, r() > 0.5 ? "tree_oak" : "tree-high-round", X + x, 0, z, U02(r, 5, 9), r() * 6);
+  }
+  for (let i = 0; i < 30; i++) {
+    const x = U02(r, -30, 30), z = U02(r, -20, 16);
+    if (Math.abs(x) < 7 && z > -14 && z < 10) continue;
+    prop(b, c.kit, "plant_bushLarge", X + x, 0, z, U02(r, 0.8, 1.6), r() * 6);
+  }
+  // wooden rail fence along the back of the meadow (and along the road)
+  const wood = lam("mdFence", () => ({ color: "#9a6a3e" }));
+  const fz = road ? -2.8 : -17;
+  for (let x = -30; x <= 30; x += 2.5) b.add(boxGeo(V(X + x - 0.07, 0, fz - 0.07), V(X + x + 0.07, 1.1, fz + 0.07)), wood);
+  for (const y of [0.55, 0.95]) b.add(boxGeo(V(X - 30, y - 0.05, fz - 0.04), V(X + 30, y + 0.05, fz + 0.04)), wood);
+  // meadow flowers: small dots of colour
+  const fl = ["#f7f3ea", "#f2c230", "#e2457a", "#8a6ad9"].map((col, i) => lam("mdFlower" + i, () => ({ color: col })));
+  for (let i = 0; i < 260; i++) {
+    const x = U02(r, -16, 16), z = U02(r, -16, 12);
+    b.add(new THREE.SphereGeometry(0.05, 6, 4).translate(X + x, 0.04, z), fl[i % 4]);
+  }
+  b.build(c.root);
+  return { clouds: true };
+};
+
+/** a modern city dog park at x = X: lawn, a green mesh fence, trees, a bench, lamp posts, far apartment blocks */
+export const dogParkSet = (X: number) => (c: { root: THREE.Object3D; kit: Kit }) => {
+  const b = new Batch(), r = rng(9);
+  b.add(new THREE.PlaneGeometry(200, 200).rotateX(-Math.PI / 2).translate(X, 0, -40), lam("dpGrass", () => ({ map: rep(grassHD(), 50, 50) })));
+  b.add(new THREE.PlaneGeometry(200, 3).rotateX(-Math.PI / 2).translate(X, 0.01, -7), lam("dpPath", () => ({ color: "#c9c4bc" })));
+  const green = lam("dpFence", () => ({ color: "#2f6b4a" }));
+  for (let x = -20; x <= 20; x += 2) b.add(boxGeo(V(X + x - 0.05, 0, -4.05), V(X + x + 0.05, 1.3, -3.95)), green);
+  for (const y of [0.1, 1.25]) b.add(boxGeo(V(X - 20, y - 0.04, -4.03), V(X + 20, y + 0.04, -3.97)), green);
+  b.add(new THREE.PlaneGeometry(40, 1.2).translate(X, 0.68, -4), lam("dpMesh", () => ({ color: "#5d8a6e", transparent: true, opacity: 0.35 })));
+  const bench = lam("dpBench", () => ({ color: "#b5653f" })), iron = lam("dpIron", () => ({ color: "#2a2633" }));
+  b.add(boxGeo(V(X - 3.6, 0.45, -5.6), V(X - 1.8, 0.52, -5.2)), bench); b.add(boxGeo(V(X - 3.6, 0.55, -5.65), V(X - 1.8, 0.95, -5.58)), bench);
+  for (const x of [-3.5, -1.9]) b.add(boxGeo(V(X + x - 0.04, 0, -5.6), V(X + x + 0.04, 0.45, -5.2)), iron);
+  for (const x of [-6, 5]) { b.add(boxGeo(V(X + x - 0.06, 0, -8.06), V(X + x + 0.06, 3.6, -7.94)), iron); b.add(new THREE.SphereGeometry(0.22, 12, 8).translate(X + x, 3.7, -8), lam("dpLamp", () => ({ color: "#f4efd8" }))); }
+  for (let i = 0; i < 26; i++) prop(b, c.kit, r() > 0.4 ? "tree_oak" : "tree-high-round", X + U02(r, -40, 40), 0, U02(r, -30, -10), U02(r, 6, 10), r() * 6);
+  for (let i = 0; i < 10; i++) prop(b, c.kit, "plant_bushLarge", X + U02(r, -14, 14), 0, U02(r, -9, -4.5), U02(r, 0.8, 1.4), r() * 6);
+  const blk = ["#e8d2b0", "#c9d8f0", "#f2c6c9", "#d9e4c4"].map((col, i) => lam("dpBlock" + i, () => ({ color: col })));
+  const wnd = lam("dpWin", () => ({ color: "#3b4a6a" }));
+  for (let i = 0; i < 9; i++) {
+    const x = -60 + i * 15 + U02(r, -3, 3), h = U02(r, 18, 34), z = -70;
+    b.add(boxGeo(V(X + x - 6, 0, z - 6), V(X + x + 6, h, z + 6)), blk[i % 4]);
+    for (let fy = 3; fy < h - 2; fy += 3.4) for (let fx = -4.5; fx <= 4.5; fx += 3) b.add(new THREE.PlaneGeometry(1.4, 1.8).translate(X + x + fx, fy, z + 6.02), wnd);
+  }
+  b.build(c.root);
+  return { clouds: true };
+};

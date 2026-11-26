@@ -1,0 +1,127 @@
+// LIBRARY PART: Sengoku Japan cast - jfolk(v) Kyoto townsfolk, jkid(v), yasukeO(look, night) (arrive/kimono/bare/sword),
+// PRIEST_O (Jesuit), NOBU_O (Oda Nobunaga, crest), AKECHI_O (armour + kabuto), ashigaru(v) (spear, jingasa), servantO(v);
+// fx: fxInkPot, fxSpear, fxCleanCloth, fxDrop (sweat), fxShine, fxFlake (snow), fxBale (rice bale), fxGift(kind), fxBlaze (big flame), fxSmoke.
+// Append to the END of toon.ts. Needs the core hats topknot/jhair/kabuto/kasa and props lift/shrug/katana/cloth (core since 2026-11-17). Origin: Yasuke
+// ======================= Yasuke short: Sengoku Japan cast + effect drawings =======================
+const J_SKINS = ["#f6d6b4", "#efc9a2", "#f3dcc2", "#e8bf98"];
+const J_KIMONO = ["#3f5f8a", "#8c3b4a", "#5d7a3a", "#a8653f", "#2f5f6a", "#6b4a7a", "#b08a3a", "#46506a"];
+const J_ROBE = ["#d9c7a0", "#7d8fa8", "#c27a5a", "#5a6b52", "#c9a0b0", "#8a7a5a"];
+/** Kyoto townsfolk (Sengoku period): men in kimono + hakama with a topknot or a straw kasa, women in kimono with an obi
+ *  and tied-up hair */
+export const jfolk = (v = 0): Outfit => {
+  const base: Outfit = { jacket: J_KIMONO[v % 8], pants: "#3b3f52", boots: "#ece6d6", skin: J_SKINS[v % 4], dress: J_ROBE[(v * 3) % 6], hair: "#1d1a22" };
+  if (v % 3 === 1) return { ...base, hat: "jhair", dress: ["#c25a7a", "#d98a3a", "#5a8fc2", "#8c5aa8"][v % 4], sash: ["#e8c45a", "#c0353a", "#f4f1ea"][v % 3], cap: ["#c0353a", "#e8c45a"][v % 2] };
+  if (v % 5 === 4) return { ...base, hat: "kasa" };
+  return { ...base, hat: "topknot", sash: v % 2 ? "#2a2633" : undefined };
+};
+/** a Japanese child in a short kimono */
+export const jkid = (v = 0): Outfit => ({ jacket: ["#e2453c", "#2f9e8f", "#f2c230", "#3f6fb5"][v % 4], pants: "#3b3f52", boots: "#ece6d6",
+  dress: ["#f08a2c", "#5a8fc2", "#c25a7a", "#5d7a3a"][v % 4], hat: v % 2 ? "jhair" : "hair", hair: "#1d1a22", cap: "#c0353a", skin: J_SKINS[v % 4], build: "kid", sash: "#f4f1ea" });
+/** Yasuke: tall young African man. arrive = Portuguese doublet and breeches; kimono = Japanese dress with katana;
+ *  bare = stripped to the waist for the scrubbing */
+export const YASUKE_SKIN = "#7a4b34";
+export const yasukeO = (look: "arrive" | "kimono" | "bare" | "sword", night = false): Outfit => {
+  const skin = night ? "#9a6446" : YASUKE_SKIN;
+  const b: Outfit = { jacket: "#8c2f3a", pants: "#3a3442", boots: "#3a2a22", skin, hat: "hair", hair: "#17121a", buttons: "#e8c45a" };
+  if (look === "arrive") return { ...b, dress: "#3a3442", sash: "#5a3b2a" };
+  if (look === "bare") return { ...b, jacket: skin, bare: true, dress: "#3a3442", sash: "#c9a25a" };
+  const k: Outfit = { ...b, jacket: "#2f3f5f", dress: "#4a4658", sash: "#c9a25a", boots: "#ece6d6" };
+  return look === "sword" ? { ...k, sword: true, scabbard: true } : k; // the sword comes only with Nobunaga's gift
+};
+/** Alessandro Valignano: Jesuit, black cassock, grey beard */
+export const PRIEST_O: Outfit = { jacket: "#24222c", pants: "#24222c", boots: "#1e1a20", dress: "#24222c", hat: "hair", hair: "#a9a39a", moustache: "#bdb7ad", skin: "#f3d6bc" };
+/** Oda Nobunaga: dark green kataginu over grey hakama, topknot, thin moustache, sheathed sword */
+export const NOBU_O: Outfit = { jacket: "#2f5a4a", pants: "#3b3f52", boots: "#ece6d6", dress: "#6a6e7e", hat: "topknot", hair: "#17121a", moustache: "#17121a", skin: "#f3d4b0", sash: "#c9a25a", sword: true, scabbard: true, build: "stout", crest: "#f4f1ea" };
+/** Akechi Mitsuhide in armour: red-laced cuirass, kabuto with a gold crescent */
+export const AKECHI_O: Outfit = { jacket: "#4a2a30", pants: "#2a2630", boots: "#2a2028", hat: "kabuto", cap: "#2c2a33", moustache: "#17121a", skin: "#efcaa6", buttons: "#e8c45a", belt: "#8a2f2a", sword: true, scabbard: true, build: "stout" };
+/** ashigaru foot soldier: jingasa (kasa painted dark), lamellar coat, spear */
+export const ashigaru = (v = 0): Outfit => ({ jacket: ["#3a3440", "#4a2a30", "#33384a"][v % 3], pants: "#2a2630", boots: "#2a2028", hat: "kasa", cap: "#3a3238",
+  skin: J_SKINS[v % 4], belt: "#8a2f2a", spear: true, buttons: "#8a7a5a" });
+/** servant in a plain kimono with tied-up sleeves (tasuki) */
+export const servantO = (v = 0): Outfit => ({ jacket: ["#7d8fa8", "#a8653f"][v % 2], pants: "#3b3f52", boots: "#ece6d6", dress: ["#5a6b52", "#46506a"][v % 2],
+  hat: "topknot", hair: "#1d1a22", skin: J_SKINS[(v + 1) % 4], sash: "#f4f1ea" });
+
+/** a spear, 64 x 512 (pole + steel tip), drawn upright: rotate the card */
+export const fxSpear = (p: Pen) => {
+  p.band([[32, 500], [32, 110]], "#7a5236", 9, 3, "round");
+  p.poly([[22, 120], [32, 8], [42, 120]], "#dfe3ea", 4);
+  p.band([[20, 128], [44, 128]], "#2a2028", 8, 2);
+};
+/** ink pot with a brush, 256 x 256 */
+export const fxInkPot = (p: Pen) => {
+  p.ell(128, 190, 70, 22, "#2a2633", 5);
+  p.poly([[62, 190], [72, 120], [184, 120], [194, 190]], "#3a3440", 5);
+  p.ell(128, 120, 56, 16, "#0d0b10", 5);
+  p.band([[150, 126], [212, 22]], "#b8823e", 9, 3, "round");
+  p.poly([[140, 140], [158, 108], [168, 118], [152, 150]], "#0d0b10", 3);
+  p.ell(90, 214, 18, 6, "#0d0b10", 0);
+};
+/** a spotless white cloth held up, 256 x 256 (nothing came off) */
+export const fxCleanCloth = (p: Pen) => {
+  p.poly([[40, 50], [216, 38], [206, 214], [52, 222]], "#fbf9f2", 6);
+  p.stroke([[70, 90], [180, 84]], 2.5, "#ddd8ca");
+  p.stroke([[66, 150], [184, 146]], 2.5, "#ddd8ca");
+};
+/** sweat drop, 64 x 96 */
+export const fxDrop = (p: Pen) => { p.poly([[32, 6], [52, 58], [44, 82], [20, 82], [12, 58]], "#bfe6ff", 4); p.ell(26, 60, 5, 9, "#ffffff", 0); };
+/** a four-point shine sparkle, 128 x 128; t 0..1 grows and fades */
+export const fxShine = (p: Pen, t: number) => {
+  const k = Math.sin(Math.PI * Math.min(1, Math.max(0, t))), r = 58 * k, w = 9 * k + 1;
+  if (k < 0.03) return;
+  p.poly([[64, 64 - r], [64 + w, 64 - w], [64 + r, 64], [64 + w, 64 + w], [64, 64 + r], [64 - w, 64 + w], [64 - r, 64], [64 - w, 64 - w]], "#fff6d0", 3);
+};
+/** snowflake, 64 x 64 */
+export const fxFlake = (p: Pen, seed: number) => {
+  const a0 = seed * 0.7;
+  for (let i = 0; i < 3; i++) { const a = a0 + (i * Math.PI) / 3; p.stroke([[32 - Math.cos(a) * 24, 32 - Math.sin(a) * 24], [32 + Math.cos(a) * 24, 32 + Math.sin(a) * 24]], 5, "#ffffff"); }
+  p.dot(32, 32, 6, "#ffffff");
+};
+/** straw rice bale (tawara) with rope bands, 400 x 240 */
+export const fxBale = (p: Pen) => {
+  p.ell(80, 120, 50, 96, "#c9a052", 6);
+  p.poly([[80, 24], [320, 24], [320, 216], [80, 216]], "#dcb768", 0);
+  p.stroke([[80, 24], [320, 24]], 6); p.stroke([[80, 216], [320, 216]], 6);
+  p.ell(320, 120, 50, 96, "#e8c878", 6);
+  for (const x of [140, 200, 260]) p.band([[x, 20], [x, 220]], "#8a6a3a", 10, 3);
+  for (let i = 0; i < 9; i++) p.stroke([[96, 40 + i * 20], [300, 40 + i * 20]], 1.5, "#b8903e");
+};
+/** gift on a tray, 256 x 256: kind 0 = little house, 1 = string of coins, 2 = sheathed katana */
+export const fxGift = (p: Pen, kind: number) => {
+  p.poly([[20, 200], [236, 200], [220, 236], [36, 236]], "#2a2028", 5);
+  p.band([[30, 200], [226, 200]], "#b8302e", 8, 3);
+  if (kind === 0) {
+    p.poly([[64, 196], [64, 124], [192, 124], [192, 196]], "#efe7d4", 5);
+    p.poly([[40, 130], [128, 70], [216, 130]], "#4a4c58", 5);
+    p.poly([[110, 196], [110, 150], [146, 150], [146, 196]], "#6b4a33", 4);
+    for (const x of [80, 164]) p.poly([[x - 12, 168], [x - 12, 144], [x + 12, 144], [x + 12, 168]], "#c9a25a", 3);
+  } else if (kind === 1) {
+    for (let i = 0; i < 7; i++) { const x = 52 + i * 26, y = 186 - Math.sin(i / 6 * Math.PI) * 60; p.ell(x, y, 16, 16, "#d8a83a", 4); p.poly([[x - 4, y - 4], [x + 4, y - 4], [x + 4, y + 4], [x - 4, y + 4]], "#2a2028", 0); }
+    p.stroke([[40, 190], [52, 186]], 3, "#8a2f2a"); p.stroke([[208, 186], [222, 190]], 3, "#8a2f2a");
+  } else {
+    p.band([[150, 160], [228, 149]], "#2a2028", 16, 4, "round");            // scabbard
+    p.poly([[96, 160], [150, 152], [152, 166], [96, 172], [86, 168]], "#e8ecf2", 3); // silver blade drawn out
+    p.band([[30, 178], [80, 171]], "#2a2028", 15, 4, "round");               // wrapped hilt
+    for (const x of [42, 56, 70]) p.stroke([[x, 170], [x + 4, 180]], 3, "#e8e0c8");
+    p.ell(86, 170, 7, 20, "#c9a25a", 3);                                       // gold guard
+  }
+};
+/** big flame tongue for a burning roof, 256 x 384, t = flicker phase */
+export const fxBlaze = (p: Pen, t: number) => {
+  const s = Math.sin(t * 6.283), c = Math.cos(t * 12.566);
+  const out: P2[] = [[128 + 24 * s, 20], [190 + 10 * c, 150], [222, 290], [176, 372], [80, 372], [34, 290], [66 - 10 * c, 150]];
+  p.poly(curveClose(out), "#ff6a24", 0);
+  const mid: P2[] = [[128 + 16 * s, 110], [176, 220], [166, 340], [90, 340], [80, 220]];
+  p.poly(curveClose(mid), "#ffaa3a", 0);
+  const core: P2[] = [[128 + 8 * s, 210], [152, 290], [140, 350], [116, 350], [104, 290]];
+  p.poly(curveClose(core), "#ffe68a", 0);
+};
+/** soft dark smoke puff, 256 x 256 (see-through) */
+export const fxSmoke = (p: Pen, seed: number, a = 0.55) => {
+  const g = p.g;
+  for (let i = 0; i < 6; i++) {
+    const x = 70 + ((i * 53 + seed * 31) % 120), y = 80 + ((i * 37 + seed * 17) % 100), r = 50 + ((i * 23 + seed) % 30);
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, `rgba(40,30,44,${a})`); gr.addColorStop(1, "rgba(40,30,44,0)");
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+  }
+};

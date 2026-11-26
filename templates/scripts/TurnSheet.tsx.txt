@@ -1,0 +1,24 @@
+// Turnaround sheet (test tool, 2026-11-21): draws outfits at yaw 0..180 (+ -35) with the short's toon.ts, so a new hat,
+// hair or pose can be checked from every side at 2x before it goes in a shot (the hairline-over-the-eyes bug showed here).
+// Use: copy to src/sandboxes/turnsheet/TurnSheet.tsx, change the import path + ROWS, add index.tsx:
+//   import { registerRoot, Composition } from "remotion"; import React from "react"; import { TurnSheet } from "./TurnSheet";
+//   registerRoot(() => <Composition id="TurnSheet" component={TurnSheet} durationInFrames={1} fps={30} width={3300} height={1120} />);
+// then: npx remotion still src/sandboxes/turnsheet/index.tsx TurnSheet out/<name>/turn.png   (crop rows with ffmpeg to view)
+import React, { useEffect, useRef } from "react";
+import { AbsoluteFill } from "remotion";
+import { Pen, bodyTurn, kidO, Outfit } from "../../videos/<name>/toon";
+const YAWS = [0, 20, 35, 50, 65, 80, 100, 130, 160, 180, -35];
+const ROWS: { o: Outfit; mode: "stand" | "stroll" }[] = [{ o: kidO(0), mode: "stand" }, { o: kidO(1), mode: "stand" }, { o: kidO(2), mode: "stroll" }, { o: kidO(3), mode: "stand" }];
+export const TurnSheet: React.FC = () => {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = ref.current!, g = c.getContext("2d")!;
+    g.fillStyle = "#d9d6cc"; g.fillRect(0, 0, c.width, c.height);
+    ROWS.forEach(({ o, mode }, r) => YAWS.forEach((y, i) => {
+      const cv = document.createElement("canvas"); cv.width = 600; cv.height = 1000;
+      bodyTurn(new Pen(cv.getContext("2d")!), o, { mode, phase: 0.3, expr: "smile", yaw: y });
+      g.drawImage(cv, 0, 0, 600, 560, i * 300, r * 280, 300, 280); // head + torso
+    }));
+  }, []);
+  return <AbsoluteFill><canvas ref={ref} width={3300} height={1120} style={{ width: "100%", height: "100%" }} /></AbsoluteFill>;
+};

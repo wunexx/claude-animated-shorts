@@ -1,0 +1,183 @@
+// LIBRARY PART: 1920s-40s lab / lecture room builder labRoom (window with painted London/Oxford/beach view, bench,
+// shelves of bottles, sink, panels or tiles), beach field-hospital tent (hospitalSet), microscopic agar world (microSet), small garden (gardenSet).
+// Append to build.ts; register e.g. SETS.lab = (c) => { labRoom(c.root, [0, 0, -3], { W: 9, D: 8, H: 4.6, wall: "#d6e2cc", dado: "#7f9a86", floor: "lino",
+//   win: [-3.4, -1.6, 1.15, 2.75], view: "london", bench: true, shelves: true, sink: 3.0 }); return { indoor: true }; }  (see the penicillin short's sets.ts)
+// 2026-11-21: glossy bottles + wood-grain bench need `phong` (props/lab_props3d.ts.txt) and `woodTex` (sets/wall_dressing.ts.txt) appended too.
+// Needs: nothing (uses addVeg, flatQuad from the core). Origin: Penicillin (Fleming) 2026-11-19
+// ======================= penicillin sets (Fleming short, 2026-11-19) =======================
+// labRoom: a generic 1920s-40s laboratory / lecture room open toward +z (back wall at z0 - 3, side walls at x +-W/2),
+// window with a painted view, bench, shelves with bottles, sink. Parametrised so one builder makes London 1928,
+// Oxford 1940 (white tiles) and a wood-panelled lecture room. Plus a beach field-hospital tent, a microscopic agar
+// world and a small garden.
+const PEN = { x: 0 };
+const flatM = (key: string, col: string) => lam(key, () => ({ color: col }));
+const basicTex = (t: THREE.Texture) => new THREE.MeshBasicMaterial({ map: t, fog: false });
+/** painted view through a window: sky, roofs and chimneys (London) or spires (Oxford) */
+const viewTex = (kind: "london" | "oxford" | "beach") => ctex("penView" + kind, 1024, 512, (g, r) => {
+  const sky = g.createLinearGradient(0, 0, 0, 512);
+  sky.addColorStop(0, "#8fbde8"); sky.addColorStop(1, "#e6eef4");
+  g.fillStyle = sky; g.fillRect(0, 0, 1024, 512);
+  g.fillStyle = "rgba(255,255,255,0.85)";
+  for (let i = 0; i < 5; i++) { const x = r() * 1024, y = 60 + r() * 120; g.beginPath(); g.ellipse(x, y, 90 + r() * 60, 24, 0, 0, 7); g.fill(); }
+  if (kind === "beach") {
+    g.fillStyle = "#4f86b8"; g.fillRect(0, 300, 1024, 90);
+    g.fillStyle = "#e6cf98"; g.fillRect(0, 390, 1024, 122);
+    g.fillStyle = "#5d6470";
+    for (const [x, w] of [[180, 90], [520, 140], [820, 70]]) { g.fillRect(x, 282, w, 16); g.fillRect(x + w * 0.4, 262, w * 0.2, 20); }
+    return;
+  }
+  const cols = kind === "london" ? ["#9a6b58", "#8a5d4f", "#a77a62", "#7d5a52"] : ["#cdbf9a", "#d8caa6", "#bfae88"];
+  for (let x = -20; x < 1044;) {
+    const w = 90 + r() * 120, h = 160 + r() * 160;
+    g.fillStyle = cols[Math.floor(r() * cols.length)]; g.fillRect(x, 512 - h, w, h);
+    g.fillStyle = "rgba(40,30,40,0.35)"; g.fillRect(x, 512 - h, w, 8);
+    g.fillStyle = "#4a5568";
+    for (let wy = 512 - h + 30; wy < 490; wy += 50) for (let wx = x + 14; wx < x + w - 24; wx += 34) g.fillRect(wx, wy, 16, 24);
+    if (kind === "london") { g.fillStyle = "#6b4a42"; g.fillRect(x + w * 0.6, 512 - h - 40, 22, 40); g.fillStyle = "#c46a4a"; g.fillRect(x + w * 0.6 + 4, 512 - h - 50, 6, 12); g.fillRect(x + w * 0.6 + 12, 512 - h - 50, 6, 12); }
+    else if (r() < 0.4) { g.fillStyle = "#bba987"; g.beginPath(); g.moveTo(x + w / 2 - 18, 512 - h); g.lineTo(x + w / 2, 512 - h - 120); g.lineTo(x + w / 2 + 18, 512 - h); g.fill(); }
+    x += w + 4;
+  }
+});
+const tileTex = () => ctex("penTiles", 256, 256, (g) => {
+  g.fillStyle = "#f1f0ea"; g.fillRect(0, 0, 256, 256);
+  g.fillStyle = "#c9c7bf"; for (let i = 0; i <= 256; i += 32) { g.fillRect(i - 1, 0, 2, 256); g.fillRect(0, i - 1, 256, 2); }
+});
+const linoTex = () => ctex("penLino", 256, 256, (g) => {
+  for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { g.fillStyle = (x + y) % 2 ? "#8a6a52" : "#a5826a"; g.fillRect(x * 32, y * 32, 32, 32); }
+});
+const panelTex = () => ctex("penPanel", 256, 256, (g) => {
+  g.fillStyle = "#7a5136"; g.fillRect(0, 0, 256, 256);
+  g.strokeStyle = "#5a3826"; g.lineWidth = 6; for (const x of [8, 136]) g.strokeRect(x, 14, 112, 228);
+  g.fillStyle = "rgba(255,220,170,0.08)"; for (const x of [14, 142]) g.fillRect(x, 20, 100, 40);
+});
+type RoomO = { W: number; D: number; H: number; wall: string; dado?: string; tiles?: boolean; panel?: boolean; floor: "planks" | "lino";
+  win?: [number, number, number, number]; view?: "london" | "oxford" | "beach"; bench?: boolean; shelves?: boolean; sink?: number; seed?: number };
+/** room open toward +z; o = floor centre of the BACK wall line (z0 is the back wall face) */
+export const labRoom = (root: THREE.Object3D, o: [number, number, number], R: RoomO) => {
+  const b = new Batch(), [x, y, z] = o, hw = R.W / 2, r = rng(R.seed ?? 3);
+  const wallM = R.tiles ? lam("penTileWall", () => ({ map: rep(tileTex(), R.W / 1.2, R.H / 1.2) })) : flatM("penWall" + R.wall, R.wall);
+  const lowM = R.panel ? lam("penPanelM", () => ({ map: rep(panelTex(), R.W / 1.6, 1) })) : R.dado ? flatM("penDado" + R.dado, R.dado) : wallM;
+  const floorM = R.floor === "planks" ? lam("penPlanks", () => ({ map: rep(planksTex(), R.W / 3, R.D / 3) })) : lam("penLinoM", () => ({ map: rep(linoTex(), R.W / 1.2, R.D / 1.2) }));
+  b.add(boxGeo(V(x - hw, y - 0.1, z), V(x + hw, y, z + R.D)), floorM);
+  const dadoH = R.panel ? 1.4 : 1.1;
+  // back wall around the window hole
+  const wall = (x0: number, x1: number, y0: number, y1: number) => {
+    if (x1 <= x0 || y1 <= y0) return;
+    if (y0 < dadoH) b.add(boxGeo(V(x0, y + y0, z - 0.2), V(x1, y + Math.min(dadoH, y1), z)), lowM);
+    if (y1 > dadoH) b.add(boxGeo(V(x0, y + Math.max(dadoH, y0), z - 0.2), V(x1, y + y1, z)), wallM);
+  };
+  if (R.win) {
+    const [w0, w1, h0, h1] = R.win;
+    wall(x - hw, x + w0, 0, R.H); wall(x + w1, x + hw, 0, R.H); wall(x + w0, x + w1, 0, h0); wall(x + w0, x + w1, h1, R.H);
+    const fr = flatM("penFrame", "#efe9dc");
+    for (const xx of [w0, (w0 + w1) / 2, w1]) b.add(boxGeo(V(x + xx - 0.04, y + h0, z - 0.12), V(x + xx + 0.04, y + h1, z + 0.02)), fr);
+    for (const yy of [h0, (h0 + h1) / 2, h1]) b.add(boxGeo(V(x + w0, y + yy - 0.04, z - 0.12), V(x + w1, y + yy + 0.04, z + 0.02)), fr);
+    b.add(boxGeo(V(x + w0 - 0.1, y + h0 - 0.08, z - 0.05), V(x + w1 + 0.1, y + h0, z + 0.18)), fr); // sill
+    const vw = (w1 - w0) * 2.2, vh = (h1 - h0) * 2;
+    const view = new THREE.Mesh(new THREE.PlaneGeometry(vw, vh), basicTex(viewTex(R.view ?? "london")));
+    view.position.set(x + (w0 + w1) / 2, y + (h0 + h1) / 2 - 0.2, z - 1.6); root.add(view);
+  } else wall(x - hw, x + hw, 0, R.H);
+  for (const s of [-1, 1]) {
+    b.add(boxGeo(V(x + s * hw - 0.1, y, z), V(x + s * hw + 0.1, y + Math.min(dadoH, R.H), z + R.D)), lowM);
+    b.add(boxGeo(V(x + s * hw - 0.1, y + dadoH, z), V(x + s * hw + 0.1, y + R.H, z + R.D)), wallM);
+  }
+  b.add(boxGeo(V(x - hw, y, z), V(x + hw, y + 0.12, z + 0.04)), flatM("penSkirt", "#5d4030"));
+  if (R.bench) {
+    const top = lam("penBenchTopW", () => ({ map: rep(woodTex(), R.W / 2, 1) })), cab = flatM("penBenchCab", "#8f6a4a");
+    b.add(boxGeo(V(x - hw + 0.2, y, z), V(x + hw - 0.2, y + 0.86, z + 0.72)), cab);
+    b.add(boxGeo(V(x - hw + 0.15, y + 0.86, z), V(x + hw - 0.15, y + 0.93, z + 0.8)), top);
+    for (let i = -hw + 0.6; i < hw - 0.4; i += 0.9) b.add(boxGeo(V(x + i, y + 0.12, z + 0.72), V(x + i + 0.82, y + 0.8, z + 0.74)), flatM("penCabDoor", "#7a5a3e"));
+    // papers, books and glassware on the bench
+    const paper = flatM("penPaper", "#f4efe2"), bookC = ["#8a3b36", "#2f5b7a", "#4f6b3a", "#7a5a2a"];
+    for (let i = 0; i < 16; i++) {
+      const px = x - hw + 0.6 + r() * (R.W - 1.2), pz = z + 0.15 + r() * 0.45;
+      if (R.sink !== undefined && Math.abs(px - (x + R.sink)) < 0.7) continue;
+      if (r() < 0.5) b.add(boxGeo(V(px - 0.16, y + 0.93, pz - 0.11), V(px + 0.16, y + 0.94 + r() * 0.03, pz + 0.11)), paper);
+      else { const n = 2 + Math.floor(r() * 3); for (let k = 0; k < n; k++) b.add(boxGeo(V(px - 0.13, y + 0.93 + k * 0.05, pz - 0.09), V(px + 0.13, y + 0.975 + k * 0.05, pz + 0.09)), flatM("penBook" + (k + i) % 4, bookC[(k + i) % 4])); }
+    }
+  }
+  if (R.shelves) {
+    const sh = flatM("penShelf", "#6e4c36"), glass = ["#7cb3c9", "#b98a3c", "#6f9a5e", "#d9e6ea", "#a35a3a", "#5a7fb0"];
+    for (const hy of [1.55, 2.05]) {
+      b.add(boxGeo(V(x + 1.3, y + hy - 0.04, z), V(x + hw - 0.4, y + hy, z + 0.32)), sh);
+      for (let bx = x + 1.45; bx < x + hw - 0.6; bx += 0.16 + r() * 0.14) {
+        const h = 0.14 + r() * 0.16, rad = 0.04 + r() * 0.03, g = new THREE.CylinderGeometry(rad * 0.6, rad, h, 10);
+        g.translate(bx, y + hy + h / 2, z + 0.16);
+        const gi = Math.floor(r() * 6); // glossy coloured glass (Penicillin 2: real highlights instead of flat colour)
+        b.add(g, phong("penGlassP" + gi, { color: glass[gi], emissive: new THREE.Color(glass[gi]).multiplyScalar(0.18), specular: "#ffffff", shininess: 120 }));
+      }
+    }
+  }
+  if (R.sink !== undefined) {
+    const sx = x + R.sink, white = flatM("penSink", "#eceeea");
+    b.add(boxGeo(V(sx - 0.38, y + 0.93, z + 0.08), V(sx + 0.38, y + 1.12, z + 0.68)), white);
+    const tap = new THREE.CylinderGeometry(0.025, 0.025, 0.36, 8); tap.translate(sx, y + 1.3, z + 0.12);
+    b.add(tap, flatM("penTap", "#b0b4b8"));
+    const sp = new THREE.CylinderGeometry(0.02, 0.02, 0.22, 8); sp.rotateX(Math.PI / 2); sp.translate(sx, y + 1.46, z + 0.22);
+    b.add(sp, flatM("penTap", "#b0b4b8"));
+  }
+  b.build(root, false);
+};
+const planksTex = () => ctex("penFloorPl", 256, 256, (g) => {
+  for (let i = 0; i < 8; i++) { g.fillStyle = ["#9a6e4a", "#8e643f", "#a47852", "#87603e"][i % 4]; g.fillRect(0, i * 32, 256, 32); g.fillStyle = "rgba(50,28,20,0.5)"; g.fillRect(0, i * 32, 256, 2); g.fillRect((i * 97) % 256, i * 32, 2, 32); }
+});
+/** field hospital tent on a beach (z = 8000): canvas walls, a wide opening onto sand + sea, a cot */
+export const hospitalSet = (c: { root: THREE.Object3D; water: (g: THREE.BufferGeometry) => void }) => {
+  const b = new Batch(), z = 8000, canvasM = flatM("penCanvas", "#b4a374"), sand = flatM("penSand", "#e2c992");
+  b.add(boxGeo(V(-60, -0.1, z - 40), V(60, 0, z + 6)), sand);
+  // back wall with a door opening x -1.4..1.4, side walls, sloping roof edges
+  b.add(boxGeo(V(-3.5, 0, z - 3.1), V(-1.4, 2.7, z - 3)), canvasM); b.add(boxGeo(V(1.4, 0, z - 3.1), V(3.5, 2.7, z - 3)), canvasM);
+  b.add(boxGeo(V(-1.4, 2.3, z - 3.1), V(1.4, 2.7, z - 3)), canvasM);
+  for (const s of [-1, 1]) b.add(boxGeo(V(s * 3.5 - 0.05, 0, z - 3.1), V(s * 3.5 + 0.05, 2.7, z + 4)), canvasM);
+  const pole = flatM("penPole", "#6e5236");
+  for (const xx of [-1.45, 1.45]) b.add(boxGeo(V(xx - 0.05, 0, z - 3.05), V(xx + 0.05, 2.75, z - 2.95)), pole);
+  // cot: frame + blanket
+  b.add(boxGeo(V(-1.9, 0.38, z - 1.2), V(-0.3, 0.48, z - 0.4)), flatM("penBlanket", "#6b7a4a"));
+  for (const xx of [-1.85, -0.35]) for (const zz of [-1.15, -0.45]) b.add(boxGeo(V(xx - 0.03, 0, z + zz - 0.03), V(xx + 0.03, 0.4, z + zz + 0.03)), pole);
+  b.add(boxGeo(V(-1.85, 0.48, z - 1.15), V(-1.45, 0.58, z - 0.45)), flatM("penPillow", "#efece2"));
+  b.build(c.root, false);
+  c.water(flatQuad(-300, 300, z - 400, z - 14, 1, 1, -0.06));
+  return { clouds: true };
+};
+/** microscopic world (z = -8000): a huge agar disc + a soft glowing backdrop */
+const agarTex = () => ctex("penAgar", 512, 512, (g, r) => {
+  g.fillStyle = "#f2d688"; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 260; i++) { g.fillStyle = `rgba(255,255,240,${0.08 + r() * 0.12})`; g.beginPath(); g.arc(r() * 512, r() * 512, 4 + r() * 18, 0, 7); g.fill(); }
+});
+const microSky = () => ctex("penMicroSky", 512, 512, (g, r) => {
+  const gr = g.createLinearGradient(0, 0, 0, 512);
+  gr.addColorStop(0, "#bfe3e0"); gr.addColorStop(0.6, "#f4ecc6"); gr.addColorStop(1, "#f7d99a");
+  g.fillStyle = gr; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(255,255,255,${0.15 + r() * 0.25})`; g.beginPath(); g.arc(r() * 512, r() * 300, 6 + r() * 26, 0, 7); g.fill(); }
+});
+export const microSet = (c: { root: THREE.Object3D }) => {
+  const z = -8000, b = new Batch();
+  const disc = new THREE.CylinderGeometry(40, 40, 0.4, 64); disc.translate(0, -0.2, z);
+  b.add(disc, lam("penAgarM", () => ({ map: rep(agarTex(), 8, 8) })));
+  b.build(c.root, false);
+  const t = microSky(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(3, 1);
+  const sky = new THREE.Mesh(new THREE.CylinderGeometry(60, 60, 80, 48, 1, true), new THREE.MeshBasicMaterial({ map: t, side: THREE.BackSide, fog: false }));
+  sky.position.set(0, 30, z); c.root.add(sky);
+  return { indoor: true };
+};
+/** a small garden (x 3000, z 8000): lawn, a round bed of dark soil at the centre, fence, bushes, trees */
+export const gardenSet = (c: { root: THREE.Object3D }) => {
+  const X = 3000, Z = 8000, b = new Batch();
+  b.add(boxGeo(V(X - 80, -0.1, Z - 80), V(X + 80, 0, Z + 20)), lam("penLawn", () => ({ map: rep(grassTexP(), 40, 25) })));
+  const bed = new THREE.CylinderGeometry(1.5, 1.6, 0.06, 48); bed.translate(X, 0.02, Z);
+  b.add(bed, flatM("penSoil", "#6a4a34"));
+  const fence = flatM("penFence", "#e9e2cf");
+  for (let i = -14; i <= 14; i += 0.5) b.add(boxGeo(V(X + i - 0.06, 0, Z - 7), V(X + i + 0.06, 1.1, Z - 6.94)), fence);
+  for (const h of [0.35, 0.85]) b.add(boxGeo(V(X - 14, h, Z - 7.02), V(X + 14, h + 0.08, Z - 6.96)), fence);
+  b.build(c.root, false);
+  const v = new Batch(), r = rng(91);
+  for (let i = 0; i < 9; i++) addVeg(v, "bush", X - 9 + i * 2.2 + r() * 0.6, 0, Z - 7.8 - r() * 0.8, 1.2 + r() * 0.6, 40 + i);
+  for (let i = 0; i < 5; i++) addVeg(v, i % 2 ? "round" : "tall", X - 12 + i * 6 + r() * 2, 0, Z - 16 - r() * 8, 5 + r() * 3, 70 + i, 1);
+  v.build(c.root, true);
+  return { clouds: true };
+};
+const grassTexP = () => ctex("penGrass", 256, 256, (g, r) => {
+  g.fillStyle = "#6cae4e"; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 500; i++) { g.fillStyle = r() < 0.5 ? "#5e9f45" : "#7cbb5a"; g.fillRect(r() * 256, r() * 256, 2, 5); }
+});
+export const PEN_ROOMS = PEN;

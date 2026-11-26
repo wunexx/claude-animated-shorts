@@ -1,0 +1,44 @@
+// LIBRARY PART: vapour / cloud quilt - one or more big soft patchwork-quilt sheets that slide in from the horizon
+// over a place (Two Suns: "vapour traps heat, like a blanket"). Append to build.ts; combine with the place's set:
+//   SETS.sea = both(seaSet(PIER), quiltSet({ shot: 9, center: LID_C, y: 17, layers: [[0, 36.5], [2.6, 39.3]] }))
+// layers = [dy, start time s]; each sheet glides in over 0.75 s. Origin: Two Suns
+import { NOINK as NOINK_Q } from "./ink";
+import type { SetCtx as QCtx, SetHooks as QHooks } from "./sets";
+/** the vapour blanket: a soft cloud quilt (pastel patches of the bed's quilt colours mixed into white vapour,
+ *  puffy cushions, dashed stitching, ragged soft edges) */
+const QUILT_RGB = [[226, 69, 122], [63, 127, 216], [242, 194, 48], [47, 163, 107], [138, 79, 201], [240, 138, 44]];
+const lidTex = () => ctex("lidQuilt3", 1024, 1024, (g) => {
+  const im = g.createImageData(1024, 1024), C = 96;
+  for (let y = 0; y < 1024; y++) for (let x = 0; x < 1024; x++) {
+    const u = x / 1023 - 0.5, v = y / 1023 - 0.5, ang = Math.atan2(v, u);
+    const r = Math.hypot(u, v) * 2 * (1 + 0.06 * Math.sin(ang * 7) + 0.04 * Math.sin(ang * 13 + 1));
+    const ix = Math.floor(x / C), iy = Math.floor(y / C), cu = (x % C) / C - 0.5, cv = (y % C) / C - 0.5;
+    const qc = QUILT_RGB[(ix * 7 + iy * 3) % QUILT_RGB.length];
+    const puff = 1 - 0.5 * Math.max(Math.abs(cu), Math.abs(cv)) ** 2 * 4;          // cushion: bright middle, soft darker rim
+    const edge = Math.max(Math.abs(cu), Math.abs(cv));
+    const stitch = edge > 0.455 && edge < 0.485 && ((x + y) >> 3) % 2 === 0 ? 0.72 : 1; // dashed stitching
+    const w = 0.3;                                                                    // pastel: mostly white vapour
+    const a = Math.max(0, 1 - Math.max(0, (r - 0.6) / 0.4));
+    const k = (0.72 + 0.28 * puff) * stitch;
+    const i = (y * 1024 + x) * 4;
+    im.data[i] = (qc[0] * (1 - w) + 255 * w) * k; im.data[i + 1] = (qc[1] * (1 - w) + 255 * w) * k; im.data[i + 2] = (qc[2] * (1 - w) + 255 * w) * k;
+    im.data[i + 3] = Math.round(255 * a);
+  }
+  g.putImageData(im, 0, 0);
+});
+export const quiltSet = (o: { shot: number; center: [number, number, number]; y: number; layers: [number, number][] }) => (c: QCtx): QHooks => {
+  const T = lidTex(), ms: { m: THREE.Mesh; dy: number; t0: number }[] = [];
+  for (const [dy, t0] of o.layers) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), new THREE.MeshBasicMaterial({ map: T, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false, color: dy ? new THREE.Color(0.98, 0.9, 0.86) : new THREE.Color(1.0, 0.96, 0.92) }));
+    m.rotation.x = -Math.PI / 2 + 0.17; m.layers.set(NOINK_Q); m.renderOrder = 3; m.visible = false;
+    c.root.add(m); ms.push({ m, dy, t0 });
+  }
+  return { update: (u) => {
+    for (const { m, dy, t0 } of ms) {
+      const k = u.id === o.shot ? STORY.smooth((u.t - t0) / 0.75) : 0;
+      m.visible = k > 0;
+      m.position.set(o.center[0], o.y + dy, o.center[2] + 190 * (1 - k) + (dy ? -8 : 0));
+      (m.material as THREE.MeshBasicMaterial).opacity = 0.88 * Math.min(1, k * 1.6);
+    }
+  } };
+};

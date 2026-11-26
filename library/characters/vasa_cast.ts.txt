@@ -1,0 +1,176 @@
+// LIBRARY PART: Vasa short drawings: 1620s outfits (admiral, king, sailors, folk, barmaid, waiter, museum visitors) using the
+// core `cavalier` hat; fx: fxLetter (sealed letter, optional HURRY stamp) [600x800], fxTray (drinks tray) [600x300], fxDrinks
+// (mugs flying + beer splash, k 0..1) [800x800], fxWorm (shipworm, hungry/sick) [600x300], fxSection (ship cross-section diagram:
+// guns, ballast, centre of weight, tilt) [1000x1000], fxWind [800x300 soft], fxBubbles [200x400 soft], fxPlaque [800x500], fxRay [200x1000 soft].
+// Append to the END of toon.ts. Origin: Vasa (2026-11-19)
+// ======================= Vasa short: cast + drawings =======================
+export const ADMIRAL_O: Outfit = { jacket: "#2c3f6e", pants: "#2a2a32", boots: "#3a2a22", hat: "cavalier", cap: "#24202a", hair: "#6a4a30", moustache: "#4a3020", buttons: "#e8c45a", sash: "#d9b24a", sword: true, scabbard: true };
+export const KING_O: Outfit = { jacket: "#d9b98a", pants: "#3a4a6a", boots: "#5a3a24", hat: "crown", hair: "#b07a44", moustache: "#9a6a3a", beard: "#9a6a3a", buttons: "#e8c45a", sash: "#3a6fc0", build: "stout", sword: true };
+export const sailorO = (v: number): Outfit => ({
+  jacket: ["#e8e2d4", "#c9b48a", "#8a9aa8", "#b0503a", "#d8cfb8", "#6a7f5a"][v % 6], pants: ["#5a4a3a", "#3a4a5a", "#6a5a48"][v % 3], boots: "#3a2a22",
+  hat: v % 3 === 2 ? "hair" : "cap", cap: ["#c0353a", "#2f5fa8", "#8a7a6a"][v % 3], hair: ["#3a2a22", "#7a5030", "#c09a5a"][v % 3],
+  moustache: v % 4 === 1 ? "#4a3426" : undefined, belt: v % 2 ? "#3a2a1a" : null, skin: ["#f2c7a5", "#e0a982", "#f6d2b4"][v % 3],
+});
+export const folkO = (v: number): Outfit => v % 2
+  ? { jacket: ["#7a3a4a", "#3a5a8a", "#5a6a3a", "#8a5a2a"][v % 4], pants: "#2e2a30", boots: "#3a2a22", hat: v % 4 === 1 ? "cavalier" : "hair", cap: "#2a2430", hair: ["#3a2a22", "#8a5a30", "#c8a060"][v % 3], moustache: v % 3 ? "#4a3426" : undefined, buttons: "#d9c38a" }
+  : { jacket: ["#a8463a", "#4a6a9a", "#c8a050", "#6a8a5a"][v % 4], pants: "#3a2a2a", boots: "#3a2a22", dress: ["#a8463a", "#4a6a9a", "#c8a050", "#6a8a5a"][v % 4], hat: v % 4 === 0 ? "bonnet" : "jhair", hair: ["#5a3a26", "#2a1c18", "#b08a50"][v % 3], cap: "#f4f1ea", sash: "#f2ead8" };
+export const BARMAID_O: Outfit = { jacket: "#3f6fb0", pants: "#2e2a30", boots: "#3a2a22", dress: "#3f6fb0", sash: "#f4f1ea", hat: "bonnet", hair: "#7a4a2a" };
+export const WAITER_O: Outfit = { jacket: "#f1ece0", pants: "#3a3a40", boots: "#2a2228", hat: "hair", hair: "#2a1c18", moustache: "#2a1c18", belt: "#3a2a1a" };
+export const visitorO = (v: number): Outfit => ({
+  jacket: ["#e2453c", "#2f8f6a", "#f2c230", "#3f7fd8", "#d98aa0", "#f4f1ea"][v % 6], pants: ["#2f3a5a", "#4a4a50", "#6a5a48"][v % 3], boots: ["#f4f1ea", "#2a2228"][v % 2],
+  hat: ["hair", "cap", "longhair", "hairband"][v % 4], cap: ["#2f5fa8", "#e2453c"][v % 2], hair: ["#3a2a22", "#c8a060", "#7a4a2a", "#1a1416"][v % 4],
+  build: v % 5 === 4 ? "kid" : "adult", skin: ["#f2c7a5", "#c98a62", "#f6d2b4", "#8a5a3a"][v % 4],
+});
+
+/** a sealed letter (parchment, rolled ends, writing, red wax seal); hurry = big red HURRY! across it */
+export const fxLetter = (p: Pen, hurry: boolean) => {
+  const g = p.g, paper = "#f2e3bf", edge = "#c9a96a";
+  p.poly([[90, 90], [510, 90], [520, 720], [80, 720]], paper, 7);
+  p.ell(300, 90, 225, 30, mix(paper, edge, 0.5), 6); p.ell(300, 720, 225, 30, mix(paper, edge, 0.5), 6);
+  for (let i = 0; i < 9; i++) {
+    const y = 170 + i * 44, w = i === 8 ? 180 : 340 - (i % 3) * 30;
+    const pts: [number, number][] = [];
+    for (let x = 0; x <= w; x += 12) pts.push([130 + x, y + Math.sin(x * 0.21 + i) * 5]);
+    p.stroke(pts, 4.5, "#4a3a5a");
+  }
+  p.ell(420, 610, 52, 48, "#b8282a", 5); p.ell(420, 610, 30, 28, "#d23a36", 0);
+  if (hurry) {
+    g.save(); g.translate(290, 470); g.rotate(-0.16);
+    g.font = "bold 112px Georgia, serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.lineWidth = 16; g.strokeStyle = INK; g.strokeText("HURRY!", 0, 0);
+    g.fillStyle = "#e0322a"; g.fillText("HURRY!", 0, 0);
+    g.restore();
+  }
+};
+const mug = (p: Pen, x: number, y: number, s: number, a = 0) => {
+  const g = p.g; g.save(); g.translate(x, y); g.rotate(a); g.scale(s, s);
+  p.arc(38, -40, 22, 28, -80, 80, 9, INK); p.arc(38, -40, 22, 28, -80, 80, 5, "#b98a4a");
+  p.poly([[-34, -95], [34, -95], [30, 0], [-30, 0]], "#d9a650", 6);
+  for (const x2 of [-14, 4, 20]) p.stroke([[x2, -88], [x2 - 2, -8]], 4, "rgba(120,70,20,0.5)");
+  p.ell(0, -98, 40, 18, "#fff8e6", 5); p.ell(-18, -110, 18, 12, "#fff8e6", 4); p.ell(14, -112, 20, 13, "#fff8e6", 4);
+  g.restore();
+};
+/** a round tray with three mugs of beer */
+export const fxTray = (p: Pen) => {
+  mug(p, 190, 210, 1); mug(p, 300, 200, 1.1); mug(p, 410, 210, 1);
+  p.ell(300, 225, 245, 40, "#c9ccd2", 7); p.ell(300, 220, 215, 26, "#e4e7ec", 0);
+};
+/** the mugs flying off and beer splashing, k 0..1 */
+export const fxDrinks = (p: Pen, k: number) => {
+  const e = 1 - (1 - k) ** 2;
+  mug(p, 400 - 220 * e, 520 - 300 * Math.sin(e * 2.6) + 120 * e, 1.1, -2.2 * e);
+  mug(p, 400 + 40 * e, 520 - 360 * Math.sin(e * 2.6) + 60 * e, 1.1, 1.4 * e);
+  mug(p, 400 + 240 * e, 520 - 260 * Math.sin(e * 2.6) + 140 * e, 1.1, 2.8 * e);
+  for (let i = 0; i < 12; i++) {
+    const a = -Math.PI * (0.1 + 0.8 * (i / 11)), d = 80 + 260 * e * (0.6 + 0.4 * ((i * 7) % 5) / 5);
+    const x = 400 + Math.cos(a) * d, y = 470 + Math.sin(a) * d * 0.8 + 200 * e * e, r = 22 * (1 - 0.5 * e);
+    p.ell(x, y, r, r * 1.3, i % 3 ? "#f2b84a" : "#fff8e6", 4);
+  }
+};
+/** a shipworm (a long pale worm with a little drill shell on its head), hungry with knife and fork, or sick */
+export const fxWorm = (p: Pen, sick: boolean) => {
+  const body = sick ? "#b9d48a" : "#f2c2b0", pts: [number, number][] = [];
+  for (let i = 0; i <= 24; i++) { const x = 560 - i * 20; pts.push([x, 170 + Math.sin(i * 0.6) * 26]); }
+  for (let i = 0; i < pts.length; i++) { const [x, y] = pts[i], r = 34 - i * 0.7; p.ell(x, y, r, r, body, 5); }
+  for (let i = 1; i < pts.length; i += 2) p.arc(pts[i][0], pts[i][1], 22, 30, -60, 60, 3, "rgba(36,23,38,0.45)");
+  const [hx, hy] = pts[0];
+  p.ell(hx + 40, hy - 6, 38, 34, "#e9e2d0", 6); p.arc(hx + 40, hy - 6, 24, 22, -90, 90, 4, INK);
+  p.ell(hx, hy - 4, 44, 42, body, 6);
+  if (sick) {
+    for (const ex of [-16, 14]) { p.arc(hx + ex, hy - 14, 10, 10, 0, 300, 4, INK); }
+    p.stroke([[hx - 22, hy + 18], [hx - 10, hy + 12], [hx + 2, hy + 20], [hx + 14, hy + 12], [hx + 26, hy + 18]], 5, INK);
+    p.ell(hx - 30, hy - 48, 7, 11, "#9fd4ff", 3);
+  } else {
+    for (const ex of [-16, 14]) { p.ell(hx + ex, hy - 14, 10, 13, "#ffffff", 4); p.dot(hx + ex + 3, hy - 12, 5, INK); }
+    p.arc(hx, hy + 10, 18, 12, 10, 170, 5, INK); p.ell(hx + 2, hy + 24, 8, 6, "#e2453c", 2);
+    p.stroke([[hx - 70, hy - 70], [hx - 46, hy + 10]], 7, "#c9ccd2"); for (const d of [-8, 0, 8]) p.stroke([[hx - 74 + d, hy - 92], [hx - 72 + d, hy - 70]], 4, "#c9ccd2");
+    p.stroke([[hx + 80, hy - 80], [hx + 56, hy + 6]], 7, "#c9ccd2"); p.poly([[hx + 76, hy - 110], [hx + 92, hy - 104], [hx + 82, hy - 70], [hx + 74, hy - 74]], "#e4e7ec", 3);
+  }
+};
+/** cross-section of the ship: two gun decks high up, a little ballast low down, the waterline level; o.guns/ballast/cg
+ *  highlight 0..1, o.tilt (rad) rolls the hull about the waterline */
+export const fxSection = (p: Pen, o: { guns: number; ballast: number; cg: number; tilt: number }) => {
+  const g = p.g, cx = 500, wl = 600;
+  g.fillStyle = "rgba(110,190,255,0.35)"; g.fillRect(0, wl, 1000, 400);
+  g.translate(500, 500); g.scale(0.8, 0.8); g.translate(-500, -500);
+  g.save(); g.translate(cx, wl); g.rotate(o.tilt); g.translate(-cx, -wl);
+  const hw = (y: number) => { const v = (y - 820) / -560; return 70 + 260 * Math.pow(Math.sin(Math.min(1, Math.max(0, v * 1.6)) * Math.PI / 2), 0.7) - (v > 0.6 ? (v - 0.6) * 140 : 0); };
+  const L: [number, number][] = [], R: [number, number][] = [];
+  for (let y = 820; y >= 230; y -= 15) { L.push([cx - hw(y), y]); R.unshift([cx + hw(y), y]); }
+  p.poly([...L, ...R], "#a8744a", 9);
+  p.poly([...L.map(([x, y]) => [x + 26, y] as [number, number]).slice(1), ...R.map(([x, y]) => [x - 26, y] as [number, number]).slice(0, -1)], "#6b4528", 0);
+  for (const y of [320, 450]) { p.stroke([[cx - hw(y) + 20, y + 40], [cx + hw(y) - 20, y + 40]], 10, "#3a2416"); }
+  p.stroke([[cx - hw(600) + 20, 640], [cx + hw(600) - 20, 640]], 8, "#3a2416");
+  const glow = (k: number, col: string) => (k > 0 ? mix(col, "#ffe066", 0.5 * k) : col);
+  for (const y of [400, 270]) for (const s of [-1, 1]) {
+    const x = cx + s * (hw(y + 40) - 75);
+    p.ell(x, y + 10, 52, 30, glow(o.guns, "#2e2a2e"), 6); p.ell(x - s * 30, y + 26, 22, 22, "#6b4528", 5);
+    p.poly([[x + s * 40, y - 4], [x + s * 112, y - 6], [x + s * 112, y + 22], [x + s * 40, y + 24]], glow(o.guns, "#2e2a2e"), 6);
+  }
+  for (let i = 0; i < 5; i++) p.ell(cx - 50 + i * 25, 770 - (i % 2) * 10, 20, 15, glow(o.ballast, "#8a8a90"), 5);
+  p.stroke([[cx, 230], [cx, 70]], 14, "#8a5a34");
+  if (o.cg > 0) {
+    const y = 330, r = 34 * Math.min(1, o.cg * 1.5);
+    p.ell(cx, y, r, r, "#e0322a", 7);
+    if (o.cg > 0.5) { p.stroke([[cx, y + r + 8], [cx, y + r + 90]], 12, "#e0322a"); p.poly([[cx - 28, y + r + 80], [cx + 28, y + r + 80], [cx, y + r + 120]], "#e0322a", 5); }
+  }
+  g.restore();
+  p.stroke([[-200, wl], [1200, wl]], 8, "#dff2ff");
+};
+/** curved white wind streaks (soft), k = phase 0..1 */
+export const fxWind = (p: Pen, k: number) => {
+  for (let i = 0; i < 4; i++) {
+    const y = 60 + i * 60, x0 = ((k + i * 0.27) % 1) * 500 - 100, pts: [number, number][] = [];
+    for (let x = 0; x <= 300; x += 15) pts.push([x0 + x, y + Math.sin(x * 0.02 + i) * 14]);
+    p.stroke(pts, 9, "rgba(255,255,255,0.75)");
+    p.arc(x0 + 300, y - 20, 22, 22, -90, 160, 9, "rgba(255,255,255,0.75)");
+  }
+};
+export const fxBubbles = (p: Pen, seed: number) => {
+  for (let i = 0; i < 9; i++) {
+    const r = 10 + ((i * 37 + seed * 13) % 23), x = 40 + ((i * 53 + seed * 29) % 120), y = 360 - i * 40;
+    p.ell(x, y, r, r, "rgba(200,235,255,0.25)", 0); p.arc(x, y, r, r, 0, 360, 3, "rgba(220,245,255,0.8)"); p.dot(x - r * 0.35, y - r * 0.35, r * 0.2, "rgba(255,255,255,0.9)");
+  }
+};
+/** museum plaque: VASA / 1628 */
+export const fxPlaque = (p: Pen) => {
+  const g = p.g;
+  p.poly([[30, 40], [770, 40], [770, 440], [30, 440]], "#2a2224", 10);
+  p.poly([[60, 70], [740, 70], [740, 410], [60, 410]], null, 5);
+  g.strokeStyle = "#d9a640"; g.lineWidth = 5; g.strokeRect(60, 70, 680, 340);
+  g.textAlign = "center"; g.textBaseline = "middle"; g.fillStyle = "#f0d48a";
+  g.font = "bold 190px Georgia, serif"; g.fillText("VASA", 400, 210);
+  g.font = "bold 92px Georgia, serif"; g.fillText("1628", 400, 345);
+};
+/** a soft shaft of light from above (underwater) */
+export const fxRay = (p: Pen) => {
+  const g = p.g, gr = g.createLinearGradient(0, 0, 0, 1000);
+  gr.addColorStop(0, "rgba(180,230,255,0.55)"); gr.addColorStop(1, "rgba(180,230,255,0)");
+  g.fillStyle = gr; g.beginPath(); g.moveTo(70, 0); g.lineTo(130, 0); g.lineTo(200, 1000); g.lineTo(0, 1000); g.closePath(); g.fill();
+};
+
+/** a big rolling gun-smoke cloud, k 0 (fresh, dense) .. 1 (spread, faded) */
+export const fxSmoke = (p: Pen, k: number) => {
+  const g = p.g, a = 0.85 * (1 - k) ** 1.2;
+  for (let i = 0; i < 11; i++) {
+    const ang = i * 2.4, d = 60 + 110 * Math.sqrt(k) * ((i % 3) / 2 + 0.4), r = 70 + 40 * ((i * 7) % 5) / 5 + 50 * k;
+    g.fillStyle = `rgba(${236 - i * 3},${232 - i * 3},${224 - i * 2},${a.toFixed(3)})`;
+    g.beginPath(); g.arc(256 + Math.cos(ang) * d, 256 + Math.sin(ang) * d * 0.7, r, 0, 7); g.fill();
+  }
+};
+/** sea water pouring into a gun port (the port at the card centre), k = flow phase 0..1 */
+export const fxPour = (p: Pen, k: number) => {
+  const g = p.g;
+  g.fillStyle = "#140c0a"; g.fillRect(196, 132, 120, 120);
+  for (let i = 0; i < 5; i++) {
+    const x0 = 40 + i * 110, sh = ((k + i * 0.2) % 1) * 30;
+    g.fillStyle = i % 2 ? "rgba(120,200,240,0.95)" : "rgba(170,225,250,0.95)";
+    g.beginPath(); g.moveTo(x0 - 20, 384); g.quadraticCurveTo(x0 + 10, 230 - sh, 256 + (i - 2) * 12, 192);
+    g.quadraticCurveTo(x0 + 50, 250 - sh, x0 + 40, 384); g.closePath(); g.fill();
+  }
+  for (let i = 0; i < 14; i++) {
+    const x = 40 + ((i * 97 + k * 400) % 440), y = 210 + ((i * 53) % 150), r = 10 + (i % 4) * 6;
+    p.ell(x, y, r, r * 0.8, "#f4fbff", 3);
+  }
+  p.stroke([[60, 300], [140, 270], [220, 300], [300, 270], [380, 300], [460, 275]], 8, "#ffffff");
+};

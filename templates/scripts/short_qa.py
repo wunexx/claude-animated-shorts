@@ -28,7 +28,7 @@ if au:
     e = run("ffmpeg", "-i", vid, "-map", "0:a:0", "-af", "ebur128=peak=true", "-f", "null", "-").stderr
     tail = e[e.rfind("Summary:"):]
     I = [l.strip() for l in tail.splitlines() if l.strip().startswith(("I:", "LRA:", "Peak:"))]
-    R.append("LOUDNESS " + " | ".join(I))
+    R.append("LOUDNESS " + " | ".join(I) + "   (target I -14.0 LUFS +-0.5, true peak <= -1.0 dBTP)")
     e = run("ffmpeg", "-i", vid, "-map", "0:a:0", "-af", "silencedetect=n=-45dB:d=0.3", "-f", "null", "-").stderr
     R.append("SILENCES " + ("; ".join(l.split("] ")[-1] for l in e.splitlines() if "silence_" in l) or "none"))
 

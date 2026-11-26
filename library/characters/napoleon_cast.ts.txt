@@ -1,0 +1,205 @@
+// LIBRARY PART: Napoleon short cast + drawings - 1807 court: NAPO_O / NAPO_GUN (grey coat, sideways bicorne), BERTHIER_O
+// (marshal blue, plumed bicorne), huntO(v), ladyO(v) (empire dress + bonnet), LACKEY_O, FARMER_O, MODERN_O; fxRabbit(p, pose
+// sit|hop|beg|climb|back, colour 0-5, ph, flip, look) [300x300], fxCage(open) [500x420], fxCart [900x560], fxCarriage(ph) [1700x900,
+// window cut out: stand a card behind it], fxThought (carrot bubble) [420x380], fxSwish(k) swing arc [400x400, soft], fxHatHeld plumed bicorne in the hand [400x200]. Append to toon.ts. Needs the core 'bicorne' hats and
+// ['whip', k] prop (in templates/storybook/toon.ts). Staging (swarm, climbers, carriage chase): src/videos/napoleon/cast.ts. Origin: Napoleon
+// ======================= Napoleon short: cast + drawings =======================
+/** 1807 court: Napoleon (grey coat, sideways bicorne), Berthier (marshal blue, plumed bicorne), hunt officers, ladies,
+ *  a lackey in livery, a farmer, a modern dog-park visitor */
+export const NAPO_O: Outfit = { jacket: "#8b9097", pants: "#f1efe6", boots: INK, hat: "bicorne", cap: "#1d1a22", hair: "#3a2a22", buttons: "#e8c45a" };
+export const NAPO_GUN: Outfit = { ...NAPO_O, rifle: true };
+export const BERTHIER_O: Outfit = { jacket: "#2b3f8a", pants: "#f1efe6", boots: INK, hat: "bicorne_plume", cap: "#1d1a22", hair: "#5a3b2a", buttons: "#e8c45a", sash: "#e8c45a", build: "stout", skin: "#f5c9a0" };
+export const huntO = (v: number, extra: Partial<Outfit> = {}): Outfit => ({
+  jacket: ["#2f6b45", "#2a5a3c", "#3b7a52"][v % 3], pants: "#f1efe6", boots: INK, hat: "bicorne", cap: "#1d1a22",
+  hair: ["#3a2a22", "#5a3b2a", "#2a1d18"][v % 3], buttons: "#e8c45a", moustache: v % 2 ? "#4a3020" : undefined, skin: SKINS[v % 4], ...extra,
+});
+export const ladyO = (v: number): Outfit => ({ jacket: ["#f4ead2", "#c9d8f0", "#f2c6c9"][v % 3], dress: ["#f4ead2", "#c9d8f0", "#f2c6c9"][v % 3], pants: "#3b3f52", boots: "#5a3b2a", hat: "bonnet", skin: SKINS[(v + 1) % 3], sash: "#c0353a" });
+export const LACKEY_O: Outfit = { jacket: "#a8323a", pants: "#f1efe6", boots: INK, hat: "hair", hair: "#e8e4dc", buttons: "#e8c45a" };
+export const FARMER_O: Outfit = { jacket: "#4f7fbf", pants: "#5a4a3a", boots: "#4a3426", hat: "cap", cap: "#6a4a2a", moustache: "#5a3b2a", build: "stout", skin: "#f5c9a0" };
+export const MODERN_O: Outfit = { jacket: "#e2457a", pants: "#3b5b9a", boots: "#f4f1ea", hat: "hair", hair: "#2a1d18", skin: SKINS[3] };
+
+/** farm rabbits: [fur, shade]; index 5 = white with dark patches */
+const RAB: [string, string][] = [["#f6f2ea", "#d8d0c4"], ["#a9a4ad", "#878290"], ["#b98455", "#946638"], ["#ead6b0", "#c9b088"], ["#5a4d52", "#3f3439"], ["#f6f2ea", "#d8d0c4"]];
+const EARIN = "#f2a9b4", NOSE = "#e8798a";
+export type RabPose = "sit" | "hop" | "beg" | "climb" | "back";
+/** a rabbit [300 x 300 px, ground y 285]. Side views (sit / hop) face screen-right unless flip; beg / climb face
+ *  the lens with big eyes looking up (look -1..1 sideways). ph = hop frame (0 stretched, 1 gathered). */
+export const fxRabbit = (p: Pen, pose: RabPose, c: number, ph = 0, flip = false, look = 0) => {
+  const [fur, sh] = RAB[c % RAB.length], patch = c % RAB.length === 5, ow = 6, g = p.g;
+  if (flip) { g.translate(300, 0); g.scale(-1, 1); }
+  if (pose === "sit" || (pose === "hop" && ph > 0.5)) {
+    p.ell(78, 222, 20, 18, "#ffffff", ow);                                  // tail
+    p.ell(150, 222, 74, 60, fur, ow);                                       // body
+    p.ell(122, 240, 48, 42, sh, 0);                                         // haunch
+    p.ell(122, 240, 48, 42, null, 4);
+    if (patch) { p.ell(150, 205, 30, 22, "#4a3f44", 0); p.ell(108, 240, 20, 16, "#4a3f44", 0); }
+    p.ell(198, 274, 22, 10, fur, 5); p.ell(120, 280, 34, 9, sh, 5);         // paws
+    for (const [x, r] of [[176, -22], [196, -8]] as const) { p.ell(x, 88, 17, 56, fur, ow, 0, 360, r); p.ell(x, 92, 8, 40, EARIN, 0, 0, 360, r); }
+    p.ell(208, 160, 46, 40, fur, ow);                                       // head
+    if (patch) p.ell(196, 150, 18, 14, "#4a3f44", 0);
+    p.dot(224, 152, 7.5); p.ell(250, 168, 7, 5, NOSE, 3);
+    p.stroke([[246, 178], [240, 186]], 3);
+    return;
+  }
+  if (pose === "hop") {
+    p.ell(48, 168, 18, 16, "#ffffff", ow);                                  // tail
+    p.ell(74, 214, 46, 14, sh, 5, 0, 360, 28);                              // hind legs kicked back
+    p.ell(140, 180, 92, 46, fur, ow, 0, 360, -8);                           // stretched body
+    if (patch) p.ell(130, 168, 34, 20, "#4a3f44", 0);
+    p.ell(240, 222, 26, 10, fur, 5, 0, 360, 30);                            // front paws reaching
+    for (const [x, r] of [[196, -62], [208, -52]] as const) { p.ell(x, 112, 15, 52, fur, ow, 0, 360, r); p.ell(x, 114, 7, 36, EARIN, 0, 0, 360, r); }
+    p.ell(236, 148, 44, 36, fur, ow);
+    p.dot(250, 140, 7.5); p.ell(276, 156, 7, 5, NOSE, 3);
+    return;
+  }
+  if (pose === "back") { // seen from behind, hopping away: round back, cotton tail, ears up, pink soles when airborne
+    const st = ph < 0.5, by = st ? 196 : 210;
+    for (const s of [-1, 1]) { p.ell(150 + s * 24, 50, 15, 50, fur, ow, 0, 360, s * 12); p.ell(150 + s * 24, 54, 6, 34, sh, 0, 0, 360, s * 12); }
+    p.ell(150, 112, 50, 42, fur, ow);
+    p.ell(150, by, 66, st ? 80 : 70, fur, ow);
+    if (patch) p.ell(168, by - 20, 24, 30, "#4a3f44", 0);
+    if (st) { p.ell(116, 274, 18, 12, "#f2b6be", 5); p.ell(184, 274, 18, 12, "#f2b6be", 5); }
+    else { p.ell(112, 280, 28, 11, sh, 5); p.ell(188, 280, 28, 11, sh, 5); }
+    p.ell(150, by + 46, 22, 20, "#ffffff", 5);
+    return;
+  }
+  // front views: beg (sitting up, paws at the chest) / climb (paws up high, hind feet dangling)
+  const cl = pose === "climb", lx = look * 6;
+  p.ell(150, 205, 62, 70, fur, ow);
+  p.ell(150, 220, 36, 44, mix(fur, "#ffffff", 0.45), 0);                    // belly
+  if (patch) p.ell(118, 200, 22, 26, "#4a3f44", 0);
+  if (cl) { p.ell(122, 286, 16, 12, fur, 5); p.ell(178, 286, 16, 12, fur, 5); }
+  else { p.ell(116, 278, 30, 12, sh, 5); p.ell(184, 278, 30, 12, sh, 5); }
+  for (const s of [-1, 1]) {                                                // ears up
+    p.ell(150 + s * 26, 48, 15, 52, fur, ow, 0, 360, s * 10);
+    p.ell(150 + s * 26, 52, 7, 38, EARIN, 0, 0, 360, s * 10);
+  }
+  p.ell(150, 118, 54, 46, fur, ow);                                         // head
+  if (patch) p.ell(170, 104, 18, 14, "#4a3f44", 0);
+  for (const s of [-1, 1]) p.ell(150 + s * 20 + lx, 108, 9.5, 11, INK, 0);   // eyes looking up
+  for (const s of [-1, 1]) p.dot(150 + s * 20 + lx + 2, 103, 3, "#ffffff");
+  p.ell(150, 130, 8, 6, NOSE, 3);
+  p.stroke([[150, 136], [150, 143]], 3); p.stroke([[150, 143], [141, 149]], 3); p.stroke([[150, 143], [159, 149]], 3);
+  for (const s of [-1, 1]) p.ell(150 + s * 22, cl ? 150 : 186, 14, 11, fur, 5); // front paws
+};
+
+/** a wooden rabbit cage [500 x 420 px]: open 0 closed (bars, rabbits peeking) .. 1 door dropped flat, empty */
+export const fxCage = (p: Pen, open: number, c = 0) => {
+  const W1 = "#b07a48", W2 = "#8a5a32";
+  for (const x of [70, 430]) p.poly(rrect(x - 14, 330, x + 14, 412, 4), W2, 5);   // legs
+  p.poly(rrect(40, 96, 460, 360, 10), W1, 7);
+  for (const y of [150, 210, 270, 330]) p.stroke([[46, y], [454, y]], 3, W2);
+  p.poly(rrect(92, 140, 408, 340, 6), "#3a2a22", 5);                              // dark inside
+  p.poly(rrect(24, 70, 476, 104, 8), W2, 7);                                      // roof plank
+  if (open < 0.5) {
+    for (const [x, k] of [[170, c], [300, c + 2]] as const) {                     // two rabbits peeking
+      const [fur] = RAB[k % RAB.length];
+      for (const s of [-1, 1]) { p.ell(x + s * 16, 196, 11, 34, fur, 4, 0, 360, s * 8); p.ell(x + s * 16, 198, 5, 24, EARIN, 0, 0, 360, s * 8); }
+      p.ell(x, 256, 40, 34, fur, 5);
+      for (const s of [-1, 1]) p.ell(x + s * 13, 250, 6, 7, INK, 0);
+      p.ell(x, 266, 6, 4, NOSE, 2);
+    }
+    for (let x = 112; x < 400; x += 36) p.stroke([[x, 142], [x, 338]], 7, "#d9c7a0"); // bars
+    p.poly(rrect(92, 140, 408, 340, 6), null, 6);
+  } else {
+    // door hinged at the bottom edge, fallen forward: a squashed bar frame below the opening
+    const y0 = 340, y1 = 340 + (open > 0.9 ? 52 : 120);
+    p.poly([[92, y0], [408, y0], [430, y1], [70, y1]], W1, 6);
+    for (let i = 1; i < 9; i++) { const t = i / 9; p.stroke([[92 + 316 * t, y0], [70 + 360 * t, y1]], 5, "#d9c7a0"); }
+  }
+};
+
+/** a farmer's two-wheeled cart [900 x 560 px] with straw and stacked empty crates */
+export const fxCart = (p: Pen) => {
+  const W1 = "#a8743e", W2 = "#7a5228";
+  p.stroke([[700, 330], [892, 420]], 16, W2);                                      // shafts
+  p.stroke([[690, 300], [880, 392]], 16, W2);
+  p.ell(300, 210, 120, 50, "#e8c45a", 6); p.ell(470, 200, 110, 46, "#efcf6a", 6);  // straw
+  p.poly(rrect(520, 120, 700, 230, 8), W1, 6); p.poly(rrect(560, 40, 690, 125, 8), W1, 6); // empty crates
+  for (const [a, b, cc, d] of [[540, 140, 680, 210], [575, 55, 675, 110]]) p.poly(rrect(a, b, cc, d, 4), "#3a2a22", 4);
+  p.poly(rrect(80, 220, 730, 330, 10), W1, 7);
+  for (const y of [256, 292]) p.stroke([[86, y], [724, y]], 3, W2);
+  for (const x of [100, 700]) p.poly(rrect(x - 12, 160, x + 12, 330, 4), W2, 5);   // stakes
+  p.ell(330, 400, 140, 140, null, 0);
+  p.ell(330, 400, 138, 138, null, 18);
+  p.g.save(); p.ell(330, 400, 128, 128, "#c49a62", 0); p.g.restore();
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; p.stroke([[330, 400], [330 + 124 * Math.cos(a), 400 + 124 * Math.sin(a)]], 10, W2); }
+  p.ell(330, 400, 132, 132, null, 16);
+  p.ell(330, 400, 22, 22, W2, 6);
+};
+
+/** the imperial carriage, side view moving screen-left [1700 x 900 px]: two horses, coachman with whip, a door
+ *  window CUT OUT (transparent: a character card stands just behind it), wheels spinning with ph. ground y 880 */
+export const fxCarriage = (p: Pen, ph: number) => {
+  const g = p.g, two = Math.PI * 2, GR = "#24503a", GOLD = "#e0b84a";
+  // horses (behind first, then front), galloping legs
+  const horse = (dx: number, dy: number, col: string, k: number) => {
+    const L = (x: number, y: number, a: number) => p.stroke([[x + dx, y + dy], [x + dx + 40 * Math.sin(a), y + dy + 150], [x + dx + 10 + 50 * Math.sin(a), y + dy + 250]], 18, INK);
+    L(130, 600, two * (ph + k)); L(170, 600, two * (ph + k + 0.5)); L(330, 600, two * (ph + k + 0.25)); L(370, 600, two * (ph + k + 0.75));
+    p.ell(420 + dx, 560 + dy, 30, 60, col, 7, 0, 360, -30);                          // tail
+    p.ell(250 + dx, 560 + dy, 170, 80, col, 8);                                     // body
+    p.poly([[110 + dx, 520 + dy], [60 + dx, 380 + dy], [130 + dx, 360 + dy], [190 + dx, 500 + dy]], col, 8); // neck
+    p.ell(60 + dx, 390 + dy, 70, 38, col, 8, 0, 360, 30);                            // head
+    p.poly([[110 + dx, 350 + dy], [124 + dx, 312 + dy], [134 + dx, 356 + dy]], col, 6); // ear
+    p.stroke([[120 + dx, 370 + dy], [190 + dx, 500 + dy]], 16, "#2a1d18");          // mane
+    p.dot(52 + dx, 378 + dy, 8);
+    p.stroke([[90 + dx, 420 + dy], [520 + dx, 600 + dy]], 6, "#3a2a22");            // harness
+  };
+  horse(60, -20, "#5a3a24", 0.3);
+  horse(0, 0, "#7a4a2a", 0);
+  // coachman on the box
+  p.poly(rrect(470, 230, 610, 330, 10), GR, 7);
+  p.poly(rrect(500, 120, 580, 240, 26), "#a8323a", 6);
+  p.ell(540, 92, 36, 34, SKIN, 6);
+  p.poly(rrect(504, 30, 576, 70, 6), INK, 0); p.poly(rrect(490, 64, 590, 78, 4), INK, 0);
+  p.dot(530, 88, 5); p.dot(552, 88, 5);
+  p.stroke([[510, 170], [430, 120], [380, 60]], 6, "#5a3a24");                    // whip
+  p.stroke(curve([380, 60], [300, 40 + 30 * Math.sin(two * ph)], [240, 110], 10), 3, INK);
+  // body of the coach
+  const body: [number, number][] = [[600, 250], [1240, 250], [1290, 330], [1270, 640], [620, 640], [580, 330]];
+  p.poly(body, GR, 9);
+  p.poly(rrect(590, 216, 1250, 252, 12), "#1b3a2a", 7);                          // roof rail
+  for (const x of [640, 1210]) { p.poly(rrect(x - 18, 150, x + 18, 214, 6), GOLD, 5); }  // lamps
+  p.stroke([[620, 560], [1260, 560]], 8, GOLD); p.stroke([[600, 300], [1260, 300]], 6, GOLD);
+  p.poly(rrect(700, 280, 1060, 600, 14), null, 7);                                // door
+  p.ell(1000, 540, 26, 26, GOLD, 5);                                              // crest
+  p.dot(1040, 470, 8, GOLD);                                                      // handle
+  // the window, cut out
+  g.save(); g.globalCompositeOperation = "destination-out"; p.poly(rrect(740, 310, 1020, 500, 16), "#000000", 0); g.restore();
+  p.poly(rrect(740, 310, 1020, 500, 16), null, 8);
+  p.stroke([[1150, 640], [1240, 760]], 10, "#1b3a2a"); p.stroke([[700, 640], [640, 760]], 10, "#1b3a2a"); // springs
+  // wheels
+  const wheel = (cx: number, cy: number, r: number) => {
+    p.ell(cx, cy, r, r, "#c49a62", 0); p.ell(cx, cy, r - 14, r - 14, null, 0);
+    for (let i = 0; i < 10; i++) { const a = (i / 10) * two - two * ph * 0.5; p.stroke([[cx, cy], [cx + (r - 8) * Math.cos(a), cy + (r - 8) * Math.sin(a)]], 9, "#7a3a2a"); }
+    p.ell(cx, cy, r, r, null, 18); p.ell(cx, cy, r - 4, r - 4, null, 0); p.ell(cx, cy, 24, 24, GOLD, 6);
+  };
+  wheel(1130, 740, 140); wheel(690, 770, 110);
+};
+
+/** a thought bubble with a carrot in it [420 x 380 px] (trail of small bubbles to the bottom-left) */
+export const fxThought = (p: Pen) => {
+  p.ell(70, 340, 18, 16, "#ffffff", 5); p.ell(112, 296, 28, 24, "#ffffff", 6);
+  for (const [x, y, r] of [[150, 150, 80], [250, 120, 90], [330, 170, 70], [210, 210, 84], [300, 230, 64], [140, 210, 60]] as const) p.ell(x, y, r, r * 0.82, "#ffffff", 7);
+  for (const [x, y, r] of [[150, 150, 76], [250, 120, 86], [330, 170, 66], [210, 210, 80], [300, 230, 60], [140, 210, 56]] as const) p.ell(x, y, r, r * 0.8, "#ffffff", 0);
+  // carrot
+  p.ell(150, 128, 18, 44, "#4c9a37", 5, 0, 360, -50); p.ell(160, 112, 14, 40, "#69b545", 5, 0, 360, -20);
+  p.poly([[150, 140], [190, 112], [330, 236], [306, 246]], "#f08a2c", 7);
+  for (const t of [0.3, 0.5, 0.7]) p.stroke([[170 + 140 * t - 10, 126 + 124 * t + 8], [170 + 140 * t + 6, 126 + 124 * t - 6]], 4, "#b85a1a");
+};
+
+/** a swing arc (motion lines) for a whip or stick [400 x 400 px]: k = direction (0 / 1) */
+export const fxSwish = (p: Pen, k: number) => {
+  const g = p.g;
+  if (k) { g.translate(400, 0); g.scale(-1, 1); }
+  for (const [r, w, a] of [[300, 16, 0.95], [255, 11, 0.7], [210, 7, 0.45]] as const) {
+    g.globalAlpha = a; p.arc(60, 360, r, r, 270, 345, w, "#ffffff"); g.globalAlpha = 1;
+  }
+};
+/** a plumed bicorne held in the hand (Berthier's bow) [400 x 200 px] */
+export const fxHatHeld = (p: Pen) => {
+  const top = curve([20, 160], [200, -40], [380, 160], 18), bot = curve([380, 160], [200, 190], [20, 160], 14);
+  for (let i = 1; i < top.length - 1; i++) p.ell(top[i][0], top[i][1] - 4, 16, 14, "#f7f3ea", 0);
+  p.poly([...top, ...bot.slice(1)], "#1d1a22", 7);
+  p.ell(120, 120, 20, 20, "#2a4fa8", 4); p.ell(120, 120, 13, 13, "#f7f3ea", 0); p.ell(120, 120, 6, 6, "#d0343a", 0);
+};

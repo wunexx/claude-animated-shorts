@@ -1,0 +1,223 @@
+// LIBRARY PART: Hanoi 1902 / colonial Indochina sets: buildStreet (old-quarter tube houses with facades, tiled roofs, awnings,
+// shop signs, shop counters along the north row, a French villa + garden wall, a street stall, an EGOUTS manhole, red lanterns),
+// buildSewer (brick barrel-vault tunnel along z, ledges, muck channel, wall lamps + warm point lights), buildOffice (colonial
+// veranda: encaustic tiles, shuttered windows, desk + ledger, tricolour, garden with soil bed), buildFarm (bamboo pens, thatched
+// hut, paddies via c.water, hills), toilet3d() (porcelain bowl, wooden seat, high cistern + chain). Append to build.ts AFTER
+// wall_dressing + lab_props3d (needs wallArt, phong) and add planks, grassHD to the paint import. Needs story STALL, MANHOLE,
+// COUNTER_TOP, COUNTER_Z, SWX, OZ, DESK, FX, FZ (see the rattails short's story.ts / sets.ts). Origin: Rat Tails 2026-11-22
+
+// ======================= Rat Tails short: sets (Hanoi street 1902, sewer, bounty veranda + garden, rat farm, toilet) =======================
+const RS = rng;
+const dirtTex = () => ctex("hnDirt", 1024, 1024, (g, r) => {
+  g.fillStyle = "#b99d74"; g.fillRect(0, 0, 1024, 1024);
+  for (let i = 0; i < 260; i++) { const x = r() * 1024, y = r() * 1024, s = 20 + r() * 90; g.fillStyle = r() > 0.5 ? "rgba(255,240,210,0.08)" : "rgba(90,60,35,0.08)"; g.beginPath(); g.ellipse(x, y, s, s * 0.6, r() * 3, 0, 7); g.fill(); }
+  for (let i = 0; i < 900; i++) { const x = r() * 1024, y = r() * 1024; g.fillStyle = r() > 0.5 ? "#8f7655" : "#d4bd96"; g.beginPath(); g.arc(x, y, 1.5 + r() * 3, 0, 7); g.fill(); }
+});
+const encausticTex = () => ctex("hnTile", 512, 512, (g) => {
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+    const x = i * 128, y = j * 128;
+    g.fillStyle = "#e9dcc0"; g.fillRect(x, y, 128, 128);
+    g.fillStyle = "#b5523a"; g.beginPath(); g.moveTo(x + 64, y + 8); g.lineTo(x + 120, y + 64); g.lineTo(x + 64, y + 120); g.lineTo(x + 8, y + 64); g.fill();
+    g.fillStyle = "#2f5f6a"; g.beginPath(); g.arc(x + 64, y + 64, 22, 0, 7); g.fill();
+    g.fillStyle = "#e9dcc0"; g.beginPath(); g.arc(x + 64, y + 64, 9, 0, 7); g.fill();
+    for (const [dx, dy] of [[0, 0], [128, 0], [0, 128], [128, 128]]) { g.fillStyle = "#2f5f6a"; g.beginPath(); g.arc(x + dx, y + dy, 18, 0, 7); g.fill(); }
+    g.strokeStyle = "rgba(80,60,40,0.35)"; g.lineWidth = 2; g.strokeRect(x, y, 128, 128);
+  }
+});
+const grateTex = () => ctex("hnGrate", 512, 512, (g) => {
+  g.fillStyle = "#3a3c42"; g.beginPath(); g.arc(256, 256, 250, 0, 7); g.fill();
+  g.strokeStyle = "#5c5f66"; g.lineWidth = 14; for (const r of [230, 170, 110]) { g.beginPath(); g.arc(256, 256, r, 0, 7); g.stroke(); }
+  g.fillStyle = "#121216"; for (let i = 0; i < 16; i++) { g.save(); g.translate(256, 256); g.rotate((i / 16) * Math.PI * 2); g.fillRect(120, -8, 100, 16); g.restore(); }
+  g.fillStyle = "#c9b98a"; g.font = "bold 44px Georgia, serif"; g.textAlign = "center"; g.fillText("EGOUTS", 256, 272);
+});
+const strawTex = () => ctex("hnStraw", 512, 512, (g, r) => {
+  g.fillStyle = "#c9a35c"; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 1400; i++) { const x = r() * 512, y = r() * 512; g.strokeStyle = r() > 0.5 ? "#a8823e" : "#e0c27a"; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 10, y + 30 + r() * 20); g.stroke(); }
+});
+const signTex = (key: string, col: string) => ctex("hnSign" + key, 128, 384, (g) => {
+  g.fillStyle = col; g.fillRect(0, 0, 128, 384); g.strokeStyle = "#e2b34a"; g.lineWidth = 10; g.strokeRect(10, 10, 108, 364);
+  g.fillStyle = "#e2b34a"; for (let i = 0; i < 3; i++) { g.fillRect(44, 50 + i * 110, 40, 12); g.fillRect(58, 36 + i * 110, 12, 50); g.fillRect(40, 76 + i * 110, 48, 8); }
+});
+const flagTex = () => ctex("frFlag", 384, 256, (g) => { g.fillStyle = "#2a4a9a"; g.fillRect(0, 0, 128, 256); g.fillStyle = "#f4f1ea"; g.fillRect(128, 0, 128, 256); g.fillStyle = "#c8323a"; g.fillRect(256, 0, 128, 256); });
+
+const HN_WALL = ["#d9b36a", "#e6d6b0", "#b9c4a8", "#d8a878", "#cfc2a0", "#a9c2b0"];
+const HN_SHUT = ["#4a6a5a", "#7a4a2a", "#3f5f7a", "#6a3a2a"];
+/** one tube house: front face at zf facing dir (+1 = +z), x0..x1, height h; roof slopes down to the street */
+const hnHouse = (b: Batch, x0: number, x1: number, zf: number, dir: 1 | -1, h: number, v: number) => {
+  const zb = zf - dir * 9, wall = HN_WALL[v % 6];
+  b.add(boxGeo(V(x0, 0, Math.min(zf, zb)), V(x1, h, Math.max(zf, zb))), lam("hnBody" + (v % 6), () => ({ color: wall })));
+  const fac = lam("hnFac" + (v % 6) + "_" + (v % 4), () => ({ map: facadeHD("hn" + (v % 6) + "_" + (v % 4), 4, 7, { wall, shutter: HN_SHUT[v % 4], door: true }) }));
+  const zq = zf + dir * 0.012;
+  b.add(dir > 0 ? quad(V(x0, 0, zq), V(x1, 0, zq), V(x1, h, zq), V(x0, h, zq)) : quad(V(x1, 0, zq), V(x0, 0, zq), V(x0, h, zq), V(x1, h, zq)), fac);
+  const roofM = lam("hnRoof" + (v % 3), () => ({ map: rep(roofHD(["#b8623a", "#a8543a", "#c07048"][v % 3]), 2, 2), side: THREE.DoubleSide }));
+  const ze = zf + dir * 0.7, zr = zf - dir * 4.5, hr = h + 1.8;
+  b.add(dir > 0 ? quad(V(x0 - 0.05, h - 0.3, ze), V(x1 + 0.05, h - 0.3, ze), V(x1 + 0.05, hr, zr), V(x0 - 0.05, hr, zr)) : quad(V(x1 + 0.05, h - 0.3, ze), V(x0 - 0.05, h - 0.3, ze), V(x0 - 0.05, hr, zr), V(x1 + 0.05, hr, zr)), roofM);
+  b.add(dir > 0 ? quad(V(x0 - 0.05, hr, zr), V(x1 + 0.05, hr, zr), V(x1 + 0.05, h, zb), V(x0 - 0.05, h, zb)) : quad(V(x1 + 0.05, hr, zr), V(x0 - 0.05, hr, zr), V(x0 - 0.05, h, zb), V(x1 + 0.05, h, zb)), roofM);
+  for (const x of [x0, x1]) b.add(tri(V(x, h, zb), V(x, hr, zr), V(x, h - 0.3, ze)), lam("hnBody" + (v % 6), () => ({ color: wall })));
+  // a cloth awning over the ground floor + a hanging shop sign
+  const aw = lam("hnAwn" + (v % 4), () => ({ color: ["#c8a050", "#7a8a5a", "#b8583a", "#5a6a8a"][v % 4], side: THREE.DoubleSide }));
+  const ax0 = x0 + 0.25, ax1 = x1 - 0.25;
+  b.add(dir > 0 ? quad(V(ax0, 2.75, zf), V(ax1, 2.75, zf), V(ax1, 2.35, zf + 1.0), V(ax0, 2.35, zf + 1.0)) : quad(V(ax1, 2.75, zf), V(ax0, 2.75, zf), V(ax0, 2.35, zf - 1.0), V(ax1, 2.35, zf - 1.0)), aw);
+  if (v % 2 === 0) b.add(boxGeo(V(x1 - 0.7, 3.1, zf + dir * 0.04 - 0.03), V(x1 - 0.3, 4.5, zf + dir * 0.04 + 0.03)), lam("hnSign" + (v % 3), () => ({ map: signTex("" + (v % 3), ["#8a2a22", "#2a3a5a", "#1f4a3a"][v % 3]) })));
+};
+export type StreetHooks = { lanterns: THREE.Object3D[] };
+export const buildStreet = (root: THREE.Object3D, glow: THREE.Object3D) => {
+  const b = new Batch(), r = RS(1902);
+  b.add(flatQuad(-70, 70, -14, 14, 1, 1, 0), lam("hnDirt", () => ({ map: rep(dirtTex(), 14, 3) })));
+  const pave = lam("hnPave", () => ({ map: rep(stoneHD("hnPaveT", ["#cbbfa6", "#bdb197", "#d4c8ae", "#b3a88f"], "#9a8f7a"), 1, 1) }));
+  b.add(boxGeo(V(-70, 0, -3.6), V(70, 0.08, -2.9), 1), pave);
+  b.add(boxGeo(V(-70, 0, 2.9), V(70, 0.08, 3.6), 1), pave);
+  // north row: old quarter tube houses to x 20, then the French villa
+  let x = -46, v = 0;
+  while (x < 20) { const w = 3.2 + r() * 1.4; hnHouse(b, x, x + w, -3.6, 1, 5.4 + r() * 2.6, v++); x += w; }
+  // shop counters in front of the north row (door gaps), where rats run in shots 5 + 8
+  const wood = lam("hnCounter", () => ({ map: rep(planks(), 1, 1), color: "#c9a27a" }));
+  for (let cx = -14; cx < 14; cx += 3.7) b.add(boxGeo(V(cx, 0.08, COUNTER_Z0), V(cx + 2.4, STORY.COUNTER_TOP, COUNTER_Z1), 0.6), wood);
+  x = -46; v = 3;
+  while (x < 46) { const w = 3.2 + r() * 1.4; hnHouse(b, x, x + w, 3.6, -1, 5.4 + r() * 2.6, v++); x += w; }
+  // French villa + garden wall + trees
+  const vw = lam("hnVillaBody", () => ({ color: "#e8c46a" }));
+  b.add(boxGeo(V(22, 0, -16), V(38, 7.6, -7)), vw);
+  b.add(quad(V(22, 0, -6.98), V(38, 0, -6.98), V(38, 7.6, -6.98), V(22, 7.6, -6.98)), lam("hnVilla", () => ({ map: facadeHD("hnVilla", 16, 7.6, { wall: "#e8c46a", shutter: "#3f7a5a", door: true }) })));
+  const vr = lam("hnVillaRoof", () => ({ map: rep(roofHD("#b8623a"), 3, 3), side: THREE.DoubleSide }));
+  b.add(quad(V(21.5, 7.6, -6.5), V(38.5, 7.6, -6.5), V(36, 10.4, -11.5), V(24, 10.4, -11.5)), vr);
+  b.add(tri(V(21.5, 7.6, -6.5), V(24, 10.4, -11.5), V(21.5, 7.6, -16.5)), vr);
+  b.add(tri(V(38.5, 7.6, -6.5), V(38.5, 7.6, -16.5), V(36, 10.4, -11.5)), vr);
+  const gw = lam("hnGardenWall", () => ({ color: "#efe2c0" }));
+  b.add(boxGeo(V(21, 0, -3.75), V(28.6, 1.25, -3.45)), gw); b.add(boxGeo(V(31.4, 0, -3.75), V(39, 1.25, -3.45)), gw);
+  for (const px of [28.4, 31.6]) b.add(boxGeo(V(px - 0.3, 0, -3.85), V(px + 0.3, 2.1, -3.35)), lam("hnPillar", () => ({ color: "#f4ead0" })));
+  for (const [tx, tz, h] of [[24.5, -5.2, 6], [35.5, -5.0, 6.5], [21.5, 5.5, 5.5], [-20, -4.8, 5]] as number[][]) addVeg(b, "round", tx, 0, tz, h, tx * 7 + tz);
+  // the hook stall: a wooden table, a few baskets of greens at its far end
+  const S = STORY.STALL;
+  b.add(boxGeo(V(S.x0, S.top - 0.05, S.z0), V(S.x1, S.top, S.z1)), wood);
+  for (const lx of [S.x0 + 0.05, S.x1 - 0.1]) for (const lz of [S.z0 + 0.05, S.z1 - 0.1]) b.add(boxGeo(V(lx, 0, lz), V(lx + 0.05, S.top - 0.05, lz + 0.05)), wood);
+  b.build(root);
+  // manhole cover of the new sewer
+  const mh = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.04, 40), [lam("hnIron", () => ({ color: "#34363c" })), lam("hnGrate", () => ({ map: grateTex() })), lam("hnIron", () => ({ color: "#34363c" }))]);
+  mh.position.set(STORY.MANHOLE[0], 0.02, STORY.MANHOLE[2]); mh.receiveShadow = true; root.add(mh);
+  // red paper lanterns under the awnings (glow at golden)
+  const lanterns: THREE.Object3D[] = [];
+  const lr = lam("hnLantern", () => ({ color: "#d8402e" }));
+  for (let lx = -13; lx < 16; lx += 4.3) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.19, 16, 12), lr); m.scale.set(1, 1.25, 1); m.position.set(lx, 2.15, -2.75); m.castShadow = true; root.add(m); lanterns.push(m);
+    const gm = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), GLOW_WIN); gm.position.set(lx, 2.15, -2.62); glow.add(gm);
+  }
+  return { lanterns } as StreetHooks;
+};
+const COUNTER_Z0 = STORY.COUNTER_Z - 0.2, COUNTER_Z1 = STORY.COUNTER_Z + 0.2;
+
+/** porcelain toilet c. 1900 with a wooden seat and a high cistern + pull chain; origin = floor under the bowl, faces +z */
+export const toilet3d = () => {
+  const g = new THREE.Group(), por = phong("hnPorcelain", { color: "#f6f3ec", specular: "#ffffff", shininess: 90 });
+  const L = (pts: [number, number][]) => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), 40);
+  const bowl = new THREE.Mesh(L([[0.0, 0], [0.13, 0], [0.15, 0.16], [0.2, 0.34], [0.215, 0.4], [0.2, 0.415], [0.17, 0.36], [0.1, 0.27], [0, 0.25]]), por);
+  bowl.scale.set(1, 1, 1.22); bowl.castShadow = true; g.add(bowl);
+  const water = new THREE.Mesh(new THREE.CircleGeometry(0.15, 32), phong("hnWater", { color: "#8fbccc", specular: "#ffffff", shininess: 120 }));
+  water.rotation.x = -Math.PI / 2; water.position.y = 0.3; water.scale.set(1, 1.2, 1); g.add(water);
+  const seat = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.028, 12, 40), phong("hnSeat", { color: "#8a5a32", specular: "#e0c090", shininess: 60 }));
+  seat.rotation.x = Math.PI / 2; seat.scale.set(1, 1.2, 1); seat.position.y = 0.43; g.add(seat);
+  const brass = phong("hnBrass", { color: "#c9a04a", specular: "#fff0c0", shininess: 80 });
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.75, 12), brass); pipe.position.set(0, 1.25, -0.3); g.add(pipe);
+  const cis = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.3, 0.24), phong("hnCistern", { color: "#3f6a55", specular: "#a0d0b0", shininess: 50 })); cis.position.set(0, 2.15, -0.28); g.add(cis);
+  const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.6, 6), brass); chain.position.set(0.22, 1.7, -0.2); g.add(chain);
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), por); knob.position.set(0.22, 1.39, -0.2); g.add(knob);
+  return g;
+};
+
+export const buildSewer = (root: THREE.Object3D, glow: THREE.Object3D) => {
+  const b = new Batch(), X = STORY.SWX, Z0 = -46, Z1 = 9;
+  const br = lam("swBrick", () => ({ map: rep(brick(), 1, 1), color: "#c9a890" }));
+  const ledge = lam("swLedge", () => ({ map: rep(stoneHD("swStone", ["#9a9284", "#8e8678", "#a39b8c", "#857d70"], "#5f594f"), 1, 1) }));
+  b.add(boxGeo(V(X - 1.75, 0, Z0), V(X - 0.62, 0.35, Z1), 0.8), ledge);
+  b.add(boxGeo(V(X + 0.62, 0, Z0), V(X + 1.75, 0.35, Z1), 0.8), ledge);
+  for (const s of [-1, 1]) b.add(boxGeo(V(X + s * 1.75 - (s > 0 ? 0 : 0.2), 0, Z0), V(X + s * 1.75 + (s > 0 ? 0.2 : 0), 1.7, Z1), 0.9), br);
+  b.build(root);
+  const vault = new THREE.Mesh(new THREE.CylinderGeometry(1.75, 1.75, Z1 - Z0, 28, 1, true, -Math.PI / 2, Math.PI), lam("swVault", () => ({ map: rep(brick(), 12, 6), color: "#b99880", side: THREE.DoubleSide })));
+  vault.rotation.set(-Math.PI / 2, 0, 0); vault.position.set(X, 1.7, (Z0 + Z1) / 2); vault.receiveShadow = true; root.add(vault);
+  const ch = new THREE.Mesh(flatQuad(X - 0.62, X + 0.62, Z0, Z1, 1, 1, 0.1), phong("swMuck", { color: "#3d4a3a", specular: "#b8c8a0", shininess: 70 })); root.add(ch);
+  const end = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), lam("swDark", () => ({ color: "#0e0c10" }))); end.position.set(X, 1.6, Z0 + 0.1); root.add(end);
+  // wall lamps (glow) + warm point lights, pipes poking in
+  for (let z = 4; z > Z0; z -= 7) {
+    const s = (Math.round(z) % 2 ? 1 : -1);
+    const lampB = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.24, 0.16), lam("swLampBox", () => ({ color: "#3a3028" }))); lampB.position.set(X + s * 1.6, 1.85, z); root.add(lampB);
+    const gm = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), GLOW_FIRE); gm.position.set(X + s * 1.6, 1.85, z); glow.add(gm);
+    const pl = new THREE.PointLight("#ffb060", 3.2, 7, 1.6); pl.position.set(X + s * 1.3, 1.9, z); root.add(pl);
+    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.5, 16, 1, true), lam("swPipe", () => ({ color: "#5a4a3a", side: THREE.DoubleSide })));
+    pipe.rotation.z = Math.PI / 2; pipe.position.set(X - s * 1.55, 0.75, z - 3); root.add(pipe);
+  }
+};
+
+export const buildOffice = (root: THREE.Object3D) => {
+  const b = new Batch(), Z = STORY.OZ;
+  b.add(boxGeo(V(-5.6, -0.1, Z - 3.2), V(5.8, 0, Z + 3.2)), lam("ofTile", () => ({ map: rep(encausticTex(), 5, 3) })));
+  const wall = lam("ofWall", () => ({ color: "#ecd6a0" })), trim = lam("ofTrim", () => ({ color: "#f6efdc" }));
+  b.add(boxGeo(V(-5.6, 0, Z - 3.4), V(5.8, 4.4, Z - 3.15)), wall);
+  b.add(boxGeo(V(-5.6, 0, Z - 3.15), V(5.8, 0.45, Z - 3.1)), lam("ofDado", () => ({ color: "#8a5a3a" })));
+  b.add(boxGeo(V(5.6, 0, Z - 3.4), V(5.85, 4.4, Z + 3.2)), wall);
+  b.add(boxGeo(V(-5.6, 4.2, Z - 3.4), V(5.85, 4.35, Z + 3.4), 0, true), trim);
+  // windows with green shutters on the back wall
+  for (const wx of [-3.4, 3.3]) {
+    b.add(boxGeo(V(wx - 0.75, 1.0, Z - 3.16), V(wx + 0.75, 2.9, Z - 3.1)), lam("ofGlass", () => ({ color: "#3a4a5a" })));
+    b.add(boxGeo(V(wx - 0.82, 0.95, Z - 3.12), V(wx + 0.82, 1.02, Z - 3.02)), trim);
+    for (const s of [-1, 1]) b.add(boxGeo(V(wx + s * 0.82 - (s > 0 ? 0 : 0.7), 0.95, Z - 3.1), V(wx + s * 0.82 + (s > 0 ? 0.7 : 0), 2.95, Z - 3.04)), lam("ofShutter", () => ({ color: "#3f7a5a" })));
+  }
+  // columns + balustrade on the garden side
+  const col = lam("ofCol", () => ({ color: "#f4ead0" }));
+  for (const cz of [Z - 3.0, Z + 2.9]) b.add(boxGeo(V(-5.75, 0, cz - 0.2), V(-5.35, 4.3, cz + 0.2)), col);
+  b.add(boxGeo(V(5.4, 0, Z + 2.7), V(5.8, 4.3, Z + 3.1)), col);
+  b.add(boxGeo(V(-5.7, 0.82, Z - 2.8), V(-5.4, 0.92, Z - 0.6)), col);
+  for (let bz = Z - 2.7; bz < Z - 0.6; bz += 0.3) b.add(boxGeo(V(-5.6, 0, bz), V(-5.5, 0.82, bz + 0.08)), col);
+  // the bounty desk + ledger + inkwell
+  const D = STORY.DESK, dw = lam("ofDesk", () => ({ map: rep(planks(), 1, 1), color: "#a86a40" }));
+  b.add(boxGeo(V(D.x - D.w / 2, D.top - 0.05, D.z - D.d / 2), V(D.x + D.w / 2, D.top, D.z + D.d / 2)), dw);
+  b.add(boxGeo(V(D.x - D.w / 2 + 0.05, 0, D.z + D.d / 2 - 0.06), V(D.x + D.w / 2 - 0.05, D.top - 0.05, D.z + D.d / 2 - 0.02)), dw);
+  for (const s of [-1, 1]) b.add(boxGeo(V(D.x + s * (D.w / 2 - 0.06) - 0.04, 0, D.z - D.d / 2 + 0.05), V(D.x + s * (D.w / 2 - 0.06) + 0.04, D.top - 0.05, D.z + D.d / 2 - 0.05)), dw);
+  b.add(boxGeo(V(D.x + 0.25, D.top, D.z - 0.25), V(D.x + 0.75, D.top + 0.05, D.z + 0.1)), lam("ofLedger", () => ({ color: "#6a2a2a" })));
+  b.add(boxGeo(V(D.x + 0.27, D.top + 0.05, D.z - 0.23), V(D.x + 0.73, D.top + 0.06, D.z + 0.08)), lam("ofPage", () => ({ color: "#f2ead6" })));
+  // flag pole + tricolour on the right
+  b.add(boxGeo(V(4.6, 0, Z - 2.6), V(4.66, 3.4, Z - 2.54)), lam("ofPole", () => ({ color: "#5a3a24" })));
+  b.add(quad(V(3.8, 2.1, Z - 2.57), V(4.6, 2.1, Z - 2.57), V(4.6, 3.3, Z - 2.57), V(3.8, 3.3, Z - 2.57)), lam("ofFlag", () => ({ map: flagTex(), side: THREE.DoubleSide })));
+  // garden: lawn, a soil bed, a back wall, bushes and trees
+  b.add(flatQuad(-24, -5.6, Z - 12, Z + 8, 1, 1, 0), lam("ofLawn", () => ({ map: rep(grassHD(), 6, 6) })));
+  b.add(boxGeo(V(-10.2, 0, Z - 1.7), V(-6.4, 0.05, Z - 0.3)), lam("ofSoil", () => ({ color: "#6a4a30" })));
+  b.add(boxGeo(V(-24, 0, Z - 9.2), V(-5.6, 2.2, Z - 8.9)), lam("ofGWall", () => ({ color: "#e8d6a8" })));
+  for (const [tx, tz, h, k] of [[-12, Z - 6, 5.5, "round"], [-15, Z - 3, 2, "bush"], [-9, Z - 5, 1.6, "bush"], [-17, Z + 2, 6, "tall"], [-7, Z - 7.5, 1.4, "bush"]] as [number, number, number, VegKind][]) addVeg(b, k, tx, 0, tz, h, tx * 13 + tz);
+  b.build(root);
+  wallArt(root, "clock", [1.9, 3.05, Z - 3.1], 0.55, 0.55, 0, 3);
+  wallArt(root, "portrait", [-1.6, 2.55, Z - 3.1], 0.7, 0.9, 0, 5);
+  wallArt(root, "notice", [5.55, 1.9, Z - 1.0], 1.1, 0.8, -Math.PI / 2, 7);
+};
+
+export const buildFarm = (root: THREE.Object3D) => {
+  const b = new Batch(), X = STORY.FX, Z = STORY.FZ;
+  b.add(flatQuad(X - 120, X + 120, Z - 140, Z + 60, 1, 1, 0), lam("fmGrass", () => ({ map: rep(grassHD(), 40, 30) })));
+  b.add(flatQuad(X - 6, X + 7, Z - 5, Z + 5, 1, 1, 0.012), lam("hnDirt", () => ({ map: rep(dirtTex(), 14, 3) })));
+  const bam = lam("fmBamboo", () => ({ color: "#b8a050" })), weave = lam("fmWeave", () => ({ map: rep(strawTex(), 2, 1) }));
+  const post = new THREE.CylinderGeometry(0.035, 0.035, 0.85, 8), rail = (len: number) => new THREE.CylinderGeometry(0.022, 0.022, len, 6);
+  const pens: [number, number][] = [[-2.3, -2.2], [0.3, -2.2], [2.9, -2.2], [-2.3, 0.4], [0.3, 0.4]];
+  for (const [px, pz] of pens) {
+    const x0 = X + px - 1.1, x1 = X + px + 1.1, z0 = Z + pz - 1.1, z1 = Z + pz + 1.1;
+    for (const [cx, cz] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) b.add(post, bam, new THREE.Matrix4().setPosition(cx, 0.42, cz));
+    for (const y of [0.5, 0.8]) {
+      b.add(rail(2.2), bam, new THREE.Matrix4().makeRotationZ(Math.PI / 2).setPosition(X + px, y, z0));
+      b.add(rail(2.2), bam, new THREE.Matrix4().makeRotationZ(Math.PI / 2).setPosition(X + px, y, z1));
+      b.add(rail(2.2), bam, new THREE.Matrix4().makeRotationX(Math.PI / 2).setPosition(x0, y, Z + pz));
+      b.add(rail(2.2), bam, new THREE.Matrix4().makeRotationX(Math.PI / 2).setPosition(x1, y, Z + pz));
+    }
+    b.add(boxGeo(V(x0, 0, z0 - 0.02), V(x1, 0.28, z0 + 0.02)), weave); b.add(boxGeo(V(x0, 0, z1 - 0.02), V(x1, 0.28, z1 + 0.02)), weave);
+    b.add(boxGeo(V(x0 - 0.02, 0, z0), V(x0 + 0.02, 0.28, z1)), weave); b.add(boxGeo(V(x1 - 0.02, 0, z0), V(x1 + 0.02, 0.28, z1)), weave);
+  }
+  // hut with a thatched roof
+  const hw = lam("fmHut", () => ({ map: rep(planks(), 1, 1), color: "#b08860" })), th = lam("fmThatch", () => ({ map: rep(strawTex(), 3, 2), side: THREE.DoubleSide }));
+  b.add(boxGeo(V(X + 3.6, 0, Z - 0.2), V(X + 6.6, 2.1, Z + 2.4)), hw);
+  b.add(quad(V(X + 3.3, 1.9, Z + 2.8), V(X + 6.9, 1.9, Z + 2.8), V(X + 6.9, 3.5, Z + 1.1), V(X + 3.3, 3.5, Z + 1.1)), th);
+  b.add(quad(V(X + 6.9, 1.9, Z - 0.6), V(X + 3.3, 1.9, Z - 0.6), V(X + 3.3, 3.5, Z + 1.1), V(X + 6.9, 3.5, Z + 1.1)), th);
+  b.add(boxGeo(V(X + 3.2, 0, Z + 2.55), V(X + 3.5, 0.42, Z + 2.85)), hw); // stool
+  // gate posts
+  for (const gx of [-3.6, -2.0]) b.add(boxGeo(V(X + gx - 0.06, 0, Z + 2.3), V(X + gx + 0.06, 1.5, Z + 2.42)), bam);
+  b.add(boxGeo(V(X - 3.66, 1.42, Z + 2.3), V(X - 1.94, 1.52, Z + 2.42)), bam);
+  // hills + bananas + bamboo clumps
+  for (let i = 0; i < 8; i++) { const a = -0.6 + i * 0.35, d = 110 + (i % 3) * 25; const m = new THREE.Mesh(new THREE.ConeGeometry(28 + (i % 4) * 8, 22 + (i % 3) * 10, 18), lam("fmHill" + (i % 2), () => ({ color: i % 2 ? "#6f9a5a" : "#5f8a52" }))); m.position.set(X + Math.sin(a) * d, 8, Z - Math.cos(a) * d); root.add(m); }
+  for (const [tx, tz, h, k] of [[-7, -6, 5, "tall"], [8, -5, 4.5, "tall"], [-9, 3, 3, "bush"], [9, 4, 6, "round"], [-14, -12, 7, "round"], [14, -15, 6, "tall"]] as [number, number, number, VegKind][]) addVeg(b, k, X + tx, 0, Z + tz, h, tx * 17 + tz);
+  b.build(root);
+};

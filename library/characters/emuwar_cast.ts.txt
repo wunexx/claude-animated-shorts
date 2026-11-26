@@ -1,0 +1,176 @@
+// LIBRARY PART: Emu War cast + drawings - 1932 Australia: GUNNER_O(v), MAJOR_O (khaki, slouch hats), FARMER_O(v) (veterans), MINISTER_O;
+// fxEmu(p, stand|run|peck|look|front|back, ph, calm|blink|shock|smug) [600x600, feet y 585, side faces +x], fxFeathers(t) [400],
+// fxLetter(ask|approved|no, k) [500x650], fxFly(ph) [100], fxMallet [200x520], fxMedalAU [120x200], fxMapWA [700x600].
+// Append to toon.ts (needs the core 'slouch' hat). Staging (emu facing/turning, flocks, rabbits, mallet swing): cast/emuwar_helpers.ts.txt. Origin: Emu War (2026-11-23)
+// ======================= Emu War short: cast + drawings (2026-11-23) =======================
+// 1932 Western Australia: Australian Army gunners (khaki + slouch hat), a major (peaked cap, Sam Browne belt), wheat
+// farmers (WWI veterans: slouch hats, shirt sleeves, medals), a 1930s minister (dark suit, grey moustache);
+// fxEmu (side stand / run / peck / lookout, front, back), fxFeathers (burst), fxLetter (ask / approved / no stamps),
+// fxFly, fxMedalAU, fxMapWA. Needs the core 'slouch' hat.
+export const GUNNER_O = (v: number): Outfit => ({ jacket: ["#8f7f55", "#86784f"][v % 2], pants: "#7a6c48", boots: "#4a3424", hat: "slouch", cap: ["#8c7650", "#7f6c48"][v % 2], hair: ["#5a3a24", "#2e2420"][v % 2], belt: "#5f4a30", buttons: "#c9a64a", skin: [SKINS[1], SKIN][v % 2], head: v + 2 });
+export const MAJOR_O: Outfit = { jacket: "#96855c", pants: "#8a7a52", boots: "#3a2618", hat: "slouch", cap: "#7a6644", hair: "#4a3424", moustache: "#5a3a24", belt: "#6a4024", buttons: "#e2c25a", build: "stout", head: 4 };
+export const FARMER_O = (v: number): Outfit => ({ jacket: ["#e6dcc4", "#bcd0de", "#d8c09a"][v % 3], pants: ["#5a4a3a", "#4a4a52", "#6a5440"][v % 3], boots: "#5a3b26", hat: "slouch", cap: ["#7a6448", "#5d5040", "#8a6e4a"][v % 3], hair: ["#6a4a30", "#3a2a22", "#9a7a58"][v % 3], skin: [SKINS[1], SKINS[2], SKIN][v % 3], moustache: v % 3 === 1 ? "#3a2a22" : undefined, head: v + 5 });
+export const MINISTER_O: Outfit = { jacket: "#30303c", pants: "#2a2a34", boots: "#1c1a20", hat: "hair", hair: "#d4cec4", moustache: "#dcd6cc", tie: "#7a2a3a", buttons: "#9a9aa8", build: "stout", head: 1 };
+
+const EMU = "#5e4a36", EMU_D = "#3f3024", EMU_L = "#8b7154", NECK = "#7d8ca6", NECK_D = "#5b6782", LEG = "#7a7064", BEAK = "#5a4c40";
+const shag = (cx: number, cy: number, rx: number, ry: number, rot: number, seed: number, fringe = 1): P2[] => {
+  const pts: P2[] = [], n = 46, cr = Math.cos(rad(rot)), sr = Math.sin(rad(rot));
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2, bottom = Math.max(0, Math.sin(a));
+    const j = 1 + (i % 2 ? 0.06 + 0.22 * bottom * fringe : -0.02) + 0.05 * Math.sin(i * 2.7 + seed);
+    const x = Math.cos(a) * rx * j, y = Math.sin(a) * ry * j;
+    pts.push([cx + x * cr - y * sr, cy + x * sr + y * cr]);
+  }
+  return pts;
+};
+const streaks = (p: Pen, cx: number, cy: number, rx: number, ry: number, seed: number) => {
+  for (let i = 0; i < 16; i++) {
+    const a = rnd(seed, i) * 2 * Math.PI, r = 0.15 + 0.7 * rnd(seed, i + 40), x = cx + Math.cos(a) * rx * r, y = cy + Math.sin(a) * ry * r;
+    p.stroke([[x, y], [x - 26, y + 22]], 5, i % 3 ? EMU_L : EMU_D);
+  }
+};
+const emuEye = (p: Pen, x: number, y: number, r: number, expr: string) => {
+  if (expr === "blink") { p.arc(x, y, r * 1.2, r * 0.7, 10, 170, 4, INK); return; }
+  if (expr === "shock") { p.ell(x, y, r * 1.6, r * 1.8, "#fff6e0", 3.5); p.dot(x, y, r * 0.5, INK); return; }
+  p.ell(x, y, r * 1.25, r * 1.25, "#e8a33a", 3); p.dot(x, y, r * 0.62, INK);
+  if (expr === "smug") p.poly([[x - r * 1.5, y - r * 0.1], [x + r * 1.5, y - r * 0.1], [x + r * 1.5, y - r * 1.7], [x - r * 1.5, y - r * 1.7]], "#4a4650", 0);
+};
+const toes = (p: Pen, x: number, y: number, dir: number) => {
+  for (const [dx, dy] of [[48, 2], [36, -10], [-20, 0]]) p.stroke([[x, y], [x + dx * dir, y + dy]], 11, INK);
+  for (const [dx, dy] of [[48, 2], [36, -10], [-20, 0]]) p.stroke([[x, y], [x + dx * dir, y + dy]], 6, LEG);
+};
+const leg = (p: Pen, hip: P2, ank: P2, foot: P2, dir = 1) => {
+  p.stroke([hip, ank, foot], 22, INK); p.stroke([hip, ank, foot], 14, LEG);
+  p.dot(ank[0], ank[1], 9, LEG);
+  toes(p, foot[0], foot[1], dir);
+};
+/** an emu [600x600, feet at y ~585]. pose: stand | run (ph gait 0..1) | peck (head down to the ground) | look (lookout:
+ *  neck stretched up) | front | back. Side views face +x (mirror the card for -x). expr calm | blink | shock | smug */
+export const fxEmu = (p: Pen, pose: "stand" | "run" | "peck" | "look" | "front" | "back", ph = 0, expr: "calm" | "blink" | "shock" | "smug" = "calm") => {
+  if (pose === "front" || pose === "back") {
+    const s = Math.sin(ph * Math.PI * 2), bob = ph ? 10 * Math.abs(s) : 0;
+    leg(p, [255, 380], [240 - (ph ? 10 * s : 0), 470 - (ph ? 50 * Math.max(0, s) : 0)], [250 - (ph ? 30 * s : 0), 585 - (ph ? 110 * Math.max(0, s) : 0)], -1);
+    leg(p, [345, 380], [360 + (ph ? 10 * s : 0), 470 - (ph ? 50 * Math.max(0, -s) : 0)], [350 + (ph ? 30 * s : 0), 585 - (ph ? 110 * Math.max(0, -s) : 0)], 1);
+    const body = shag(300, 290 - bob, 150, 122, 0, 3);
+    p.shadedFill(body, EMU, EMU_D, 0, 150, 0.4); p.inkRing(body, 6, 0); streaks(p, 300, 290 - bob, 130, 100, 3);
+    const neck: P2[] = [[268, 220 - bob], [282, 120 - bob], [286, 70 - bob], [314, 70 - bob], [318, 120 - bob], [332, 220 - bob]];
+    p.poly(neck, pose === "back" ? EMU : NECK, 6);
+    p.poly([[262, 228 - bob], [280, 160 - bob], [320, 160 - bob], [338, 228 - bob]], EMU, 0);
+    for (let i = 0; i < 6; i++) p.stroke([[276 + i * 9, 170 - bob], [272 + i * 10, 214 - bob]], 4, EMU_D);
+    p.ell(300, 60 - bob, 36, 34, pose === "back" ? EMU_D : "#4a4650", 6);
+    for (let i = -2; i <= 2; i++) p.stroke([[300 + i * 9, 30 - bob], [300 + i * 12, 14 - bob]], 6, EMU_D);
+    if (pose === "front") {
+      p.poly([[288, 66 - bob], [312, 66 - bob], [300, 98 - bob]], BEAK, 4);
+      emuEye(p, 276, 52 - bob, 7, expr); emuEye(p, 324, 52 - bob, 7, expr);
+    }
+    return;
+  }
+  const run = pose === "run", s = Math.sin(ph * Math.PI * 2), c = Math.cos(ph * Math.PI * 2);
+  const bob = run ? 14 * Math.abs(s) : 0, tilt = run ? 10 : pose === "peck" ? 12 : 0;
+  // legs (far one darker, behind)
+  const legAt = (k: number): [P2, P2, P2] => {
+    if (!run) return [[290 + k * 18, 375], [292 + k * 22, 478], [296 + k * 30, 585]];
+    const sw = k * s, lift = Math.max(0, k * c) * 70;
+    return [[290, 372 - bob], [290 + 70 * sw - 18, 470 - lift * 0.5 - bob * 0.5], [300 + 130 * sw, 585 - lift]];
+  };
+  const far = legAt(-1), near = legAt(1);
+  p.g.save(); p.g.globalAlpha = 1; leg(p, far[0], far[1], far[2]); p.g.restore();
+  const body = shag(268, 300 - bob, 178, 110, -8 + tilt * 0.4, 7);
+  p.shadedFill(body, EMU, EMU_D, -0.6, 178, 0.4); p.inkRing(body, 6, 0); streaks(p, 268, 300 - bob, 150, 90, 7);
+  // neck + head by pose
+  let base: P2 = [402, 262 - bob], mid: P2 = [452, 170 - bob], hd: P2 = [474, 70 - bob], up = 1;
+  if (pose === "peck") { base = [404, 280]; mid = [500, 330]; hd = [520, 500]; up = -1; }
+  if (pose === "look") { mid = [430, 150]; hd = [438, 52]; }
+  if (run) { mid = [470, 190 - bob]; hd = [510, 96 - bob]; }
+  const nk = curve(base, mid, hd, 12), L: P2[] = [], R: P2[] = [];
+  for (let i = 0; i < nk.length; i++) {
+    const k = i / (nk.length - 1), w = 40 - 22 * k, a = nk[Math.min(i + 1, nk.length - 1)], b = nk[Math.max(i - 1, 0)];
+    const dx = a[0] - b[0], dy = a[1] - b[1], n = Math.hypot(dx, dy) || 1;
+    L.push([nk[i][0] - (dy / n) * w, nk[i][1] + (dx / n) * w]); R.push([nk[i][0] + (dy / n) * w, nk[i][1] - (dx / n) * w]);
+  }
+  const neckPts = [...L, ...R.reverse()];
+  p.shadedFill(neckPts, NECK, NECK_D, -0.6, 60, 0.4); p.inkRing(neckPts, 5.5, 0);
+  // shaggy feathers over the lower neck
+  const low = nk.slice(0, 6);
+  for (let i = 0; i < low.length; i++) p.ell(low[i][0], low[i][1], 34 - i * 3, 26 - i * 2, EMU, i === 0 ? 0 : 0);
+  for (let i = 1; i < low.length; i++) p.stroke([[low[i][0] + 10, low[i][1] - 6], [low[i][0] - 16, low[i][1] + 18]], 4, EMU_D);
+  // head
+  const ha = Math.atan2(hd[1] - mid[1], hd[0] - mid[0]), fwd: P2 = up > 0 ? [1, 0] : [Math.cos(ha), Math.sin(ha)];
+  p.ell(hd[0], hd[1], 34, 28, "#4a4650", 6, 0, 360, up > 0 ? 0 : (ha * 180) / Math.PI);
+  for (let i = -2; i <= 2; i++) p.stroke([[hd[0] - 6 + i * 8, hd[1] - 22], [hd[0] - 14 + i * 9, hd[1] - 40]], 6, EMU_D);
+  const bx = hd[0] + fwd[0] * 28, by = hd[1] + fwd[1] * 28, nx = -fwd[1], ny = fwd[0];
+  p.poly([[bx + nx * 12, by + ny * 12], [bx + fwd[0] * 46, by + fwd[1] * 46 + 4], [bx - nx * 10, by - ny * 10]], BEAK, 4);
+  emuEye(p, hd[0] + fwd[0] * 8 - nx * 9, hd[1] + fwd[1] * 8 - ny * 9, 8, expr);
+  leg(p, near[0], near[1], near[2]);
+};
+/** loose feathers flying out from a hit (t 0..1) [400x400] */
+export const fxFeathers = (p: Pen, t: number, seed = 1) => {
+  for (let i = 0; i < 9; i++) {
+    const a = rnd(seed, i) * 2 * Math.PI, r = 30 + 150 * t * (0.6 + 0.5 * rnd(seed, i + 9)), x = 200 + Math.cos(a) * r, y = 200 + Math.sin(a) * r + 60 * t * t;
+    p.g.save(); p.g.globalAlpha = Math.max(0, 1 - t * t);
+    p.ell(x, y, 22, 8, i % 2 ? EMU : EMU_L, 3, 0, 360, (a * 180) / Math.PI + 200 * t);
+    p.g.restore();
+  }
+};
+const paper = (p: Pen, w: number, h: number) => {
+  p.poly([[20, 20], [w - 20, 14], [w - 16, h - 20], [24, h - 14]], "#f6efdc", 6);
+  for (let y = 120; y < h - 60; y += 34) p.stroke([[60, y], [w - 60, y]], 1.5, "#cfc3a6");
+};
+const typed = (p: Pen, s: string, x: number, y: number, size: number, col = INK, align: CanvasTextAlign = "left", font = "Georgia, serif") => {
+  const g = p.g; g.save(); g.fillStyle = col; g.font = `bold ${size}px ${font}`; g.textAlign = align; g.textBaseline = "middle"; g.fillText(s, x, y); g.restore();
+};
+const stamp = (p: Pen, s: string, x: number, y: number, size: number, rot: number, k = 1) => {
+  if (k <= 0) return;
+  const g = p.g; g.save(); g.translate(x, y); g.rotate(rot); g.scale(1 + 0.6 * (1 - k), 1 + 0.6 * (1 - k)); g.globalAlpha = Math.min(1, k * 1.5);
+  g.font = `bold ${size}px Arial, sans-serif`; const w = g.measureText(s).width;
+  g.strokeStyle = "#c0262e"; g.lineWidth = size * 0.1; g.strokeRect(-w / 2 - size * 0.3, -size * 0.75, w + size * 0.6, size * 1.5);
+  g.fillStyle = "#c0262e"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(s, 0, 4); g.restore();
+};
+/** the farmers' letter [500x650]: kind ask | approved (k = stamp 0..1) | no (n = how many NO stamps, 0..3) */
+export const fxLetter = (p: Pen, kind: "ask" | "approved" | "no", k = 1) => {
+  paper(p, 500, 650);
+  if (kind === "no") {
+    typed(p, "DEPT. OF DEFENCE", 250, 70, 34, "#2a2a3a", "center");
+    typed(p, "Request: troops", 60, 150, 30); typed(p, "to shoot emus", 60, 190, 30);
+    ["1934", "1943", "1948"].forEach((y, i) => { typed(p, y, 70, 290 + i * 110, 40); stamp(p, "NO", 320, 290 + i * 110, 84, -0.12 + i * 0.08, clamp(k - i, 0, 1)); });
+    return;
+  }
+  typed(p, "Dear Minister,", 50, 90, 36, "#2a2a4a", "left", "cursive");
+  typed(p, "The emus are eating", 50, 170, 30, "#2a2a4a", "left", "cursive");
+  typed(p, "all our wheat.", 50, 210, 30, "#2a2a4a", "left", "cursive");
+  typed(p, "Please send us", 50, 290, 34, "#2a2a4a", "left", "cursive");
+  typed(p, "MACHINE GUNS", 250, 370, 50, "#2a2a4a", "center");
+  p.stroke([[80, 402], [420, 402]], 5, "#2a2a4a");
+  typed(p, "- the farmers", 230, 470, 30, "#2a2a4a", "left", "cursive");
+  if (kind === "approved") stamp(p, "APPROVED", 250, 560, 60, -0.18, k);
+};
+/** a fly [100x100], wings flicker with ph */
+export const fxFly = (p: Pen, ph: number) => {
+  p.g.save(); p.g.globalAlpha = 0.55; p.ell(40, 34, 20, 12, "#dfe8f2", 2, 0, 360, -30 + 30 * ph); p.ell(60, 34, 20, 12, "#dfe8f2", 2, 0, 360, 30 - 30 * ph); p.g.restore();
+  p.ell(50, 54, 15, 20, "#22202a", 3); p.dot(44, 40, 5, "#a8343a"); p.dot(56, 40, 5, "#a8343a");
+};
+/** a big wooden mallet, head up [200x520] */
+export const fxMallet = (p: Pen) => {
+  p.poly([[86, 150], [114, 150], [118, 510], [82, 510]], "#b07a46", 5);
+  p.stroke([[100, 170], [100, 490]], 4, "#d09a60");
+  p.poly([[16, 30], [184, 30], [190, 160], [10, 160]], "#6a6a74", 6);
+  p.stroke([[30, 50], [170, 50]], 8, "#9a9aa8");
+};
+/** a war medal on a striped ribbon [120x200] */
+export const fxMedalAU = (p: Pen) => {
+  p.poly([[30, 10], [90, 10], [90, 80], [30, 80]], "#c94a3a", 4);
+  p.stroke([[50, 12], [50, 78]], 8, "#2a4f8a"); p.stroke([[70, 12], [70, 78]], 8, "#f2e6c8");
+  p.ell(60, 130, 44, 44, "#e2b84a", 5); p.ell(60, 130, 28, 28, "#c99a30", 2);
+};
+/** a framed map of Australia with Western Australia shaded and a red pin [700x600] */
+export const fxMapWA = (p: Pen) => {
+  p.poly([[0, 0], [700, 0], [700, 600], [0, 600]], "#7a5232", 0);
+  p.poly([[26, 26], [674, 26], [674, 574], [26, 574]], "#e9dfc4", 5);
+  const S = (x: number, y: number): P2 => [80 + x * 5.4, 70 + y * 4.6];
+  const aus: P2[] = [[10, 40], [22, 22], [38, 18], [44, 8], [56, 12], [62, 4], [70, 20], [80, 2], [88, 30], [100, 50], [104, 70], [96, 88], [84, 100], [70, 96], [62, 82], [52, 78], [40, 86], [18, 92], [6, 80], [4, 60]].map(([x, y]) => S(x, y));
+  p.poly(aus, "#cfdcae", 5);
+  const wa: P2[] = [[10, 40], [22, 22], [38, 18], [44, 8], [48, 10], [48, 84], [40, 86], [18, 92], [6, 80], [4, 60]].map(([x, y]) => S(x, y));
+  p.poly(wa, "#e8b45c", 4);
+  const [px, py] = S(18, 70); p.stroke([[px, py], [px + 8, py - 50]], 6, INK); p.dot(px + 8, py - 54, 16, "#c0262e");
+  typed(p, "WESTERN", S(26, 48)[0], S(26, 48)[1], 30, "#5a3a20", "center"); typed(p, "AUSTRALIA", S(26, 48)[0], S(26, 48)[1] + 34, 30, "#5a3a20", "center");
+};

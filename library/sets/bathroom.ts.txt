@@ -1,0 +1,32 @@
+// LIBRARY PART: small tiled bathroom open toward +z (origin = floor centre)
+// Append to the END of the short's build.ts (below "library parts appended below"), then register in sets.ts:
+//   SETS.bath = (c) => { buildBath(c.root, [BX, 0, 0]); return { indoor: true }; };
+// Needs: nothing
+// Origin: La Llorona
+export const buildBath = (root: THREE.Object3D, o: [number, number, number]) => {
+  const b = new Batch(), [x, y, z] = o;
+  const tile = lam("bathTile", () => ({ map: rep(bathTileTex(), 1, 1) })), floor = lam("bathFloor", () => ({ map: rep(bathFloorTex(), 1, 1) }));
+  const wall = lam("bathWall", () => ({ color: "#e6cfa6" }));
+  b.add(boxGeo(V(x - 1.8, y - 0.1, z - 1.6), V(x + 1.8, y, z + 1.6), 1), floor);
+  b.add(boxGeo(V(x - 1.8, y, z - 1.7), V(x + 1.8, y + 1.4, z - 1.6), 0.6), tile);
+  b.add(boxGeo(V(x - 1.8, y + 1.4, z - 1.7), V(x + 1.8, y + 2.6, z - 1.6)), wall);
+  for (const s of [-1, 1]) {
+    b.add(boxGeo(V(x + s * 1.8 - 0.05, y, z - 1.7), V(x + s * 1.8 + 0.05, y + 1.4, z + 1.6), 0.6), tile);
+    b.add(boxGeo(V(x + s * 1.8 - 0.05, y + 1.4, z - 1.7), V(x + s * 1.8 + 0.05, y + 2.6, z + 1.6)), wall);
+  }
+  b.add(boxGeo(V(x - 1.85, y + 2.6, z - 1.75), V(x + 1.85, y + 2.7, z + 1.6), 0, true), lam("bathCeil", () => ({ color: "#d8c29c" })));
+  b.build(root, false);
+};
+const bathTileTex = () => ctex("bathTile", 256, 256, (g) => {
+  g.fillStyle = "#efe6d2"; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+    const x = i * 64, y = j * 64;
+    g.strokeStyle = "#1d4a9a"; g.lineWidth = 7;
+    g.beginPath(); g.arc(x + 32, y + 32, 16, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = "#2f5fa8"; for (const [dx, dy] of [[6, 6], [58, 6], [6, 58], [58, 58]]) { g.beginPath(); g.arc(x + dx, y + dy, 5, 0, 7); g.fill(); }
+    g.strokeStyle = "rgba(90,90,100,0.4)"; g.lineWidth = 2; g.strokeRect(x, y, 64, 64);
+  }
+});
+const bathFloorTex = () => ctex("bathFloor", 256, 256, (g) => {
+  for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { g.fillStyle = (i + j) % 2 ? "#d9c7a6" : "#7a3b2a"; g.fillRect(i * 32, j * 32, 32, 32); }
+});

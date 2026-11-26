@@ -1,0 +1,268 @@
+// LIBRARY PART: 1917 steamer steamer(L,B) -> {g, set(scheme)} with grey / dazzle / half-painted / false-bow paint (hullTex), a dockyard quay buildDock(root) (warehouses, cranes, bollards, crates, barber's shop, painters' scaffold), barberPole() -> {g, spin(t)} (red/white/blue helix), roller() paint roller posed hand->tip, periscope() (sub periscope above water), buildStudio(root, z0) (panelled studio, dazzle design boards, model table + turntable + painted sea backdrop, brass periscope on a tripod).
+// Append to build.ts (needs STORY.TABLE, STORY.SCOPE in story.ts; imports cobbleHD, planksHD itself). Register like Dazzle sets.ts: dockSet / seaSet / studioSet (ships per shot from story DOCK_SHIPS / dockScheme, per-frame stripe quad, convoy sinking via sinkA).
+// Periscope MASK overlay (black + round window + cross hairs) lives in Dazzle Bridge.tsx <Periscope/> with story PERISCOPE = [f0, f1].
+// Origin: Dazzle (Zebra Warships) 2026-11-22
+// ---------------- DAZZLE SHIPS (2026-11-22): 1917 steamer with grey / dazzle / half-painted / false-bow schemes,
+// a dockyard quay with a barber's shop + pole, the open sea, the Dazzle Section studio ----------------
+import { cobbleHD, planksHD } from "./paint";
+
+export type DzScheme = "grey" | "dazzle" | "half" | "false";
+const DZ_INK = "#15171c", DZ_NAVY = "#25375f", DZ_BLUE = "#6f8fb8", DZ_PALE = "#eef0ea", DZ_GREY = "#8b939b";
+const WL = 0.235; // waterline as a fraction of hull height from the keel (hull y -2 .. 6.5)
+/** bold slanted dazzle bands + wedges across a w x h canvas region [x0, x1) */
+const dazzlePaint = (g: CanvasRenderingContext2D, x0: number, x1: number, h: number, seed: number) => {
+  const r = rng(seed), cols = [DZ_INK, DZ_NAVY, DZ_BLUE, DZ_INK, "#a9b3bd", DZ_NAVY];
+  g.fillStyle = DZ_PALE; g.fillRect(x0, 0, x1 - x0, h);
+  let x = x0 - h * 0.6, i = 0;
+  while (x < x1 + h) {
+    const w = h * (0.18 + r() * 0.32), sk = h * (r() < 0.5 ? 0.55 : -0.45) * (0.6 + r() * 0.6);
+    g.fillStyle = cols[i++ % cols.length];
+    g.beginPath(); g.moveTo(x, 0); g.lineTo(x + w, 0); g.lineTo(x + w + sk, h); g.lineTo(x + sk, h); g.closePath(); g.fill();
+    if (r() < 0.55) { // a wedge breaking the band
+      g.fillStyle = r() < 0.5 ? DZ_PALE : DZ_BLUE;
+      const y = h * (0.15 + r() * 0.5);
+      g.beginPath(); g.moveTo(x + w * 0.2, y); g.lineTo(x + w * 1.8, y + h * 0.12); g.lineTo(x + w * 0.4, y + h * 0.32); g.closePath(); g.fill();
+    }
+    x += w * (1.5 + r() * 0.9);
+  }
+};
+const greyPaint = (g: CanvasRenderingContext2D, x0: number, x1: number, h: number) => {
+  g.fillStyle = DZ_GREY; g.fillRect(x0, 0, x1 - x0, h);
+  g.strokeStyle = "rgba(40,44,52,0.18)"; g.lineWidth = 2;
+  for (let x = x0 + 40; x < x1; x += 96) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); } // plate seams
+  g.fillStyle = "rgba(255,255,255,0.08)"; g.fillRect(x0, 0, x1 - x0, h * 0.08);
+};
+/** hull side texture, u along the ship (0 stern .. 1 bow), v keel .. deck */
+export const hullTex = (s: DzScheme) => ctex("dzHull_" + s, 2048, 512, (g) => {
+  const W = 2048, H = 512, wl = H * (1 - WL);
+  if (s === "grey") greyPaint(g, 0, W, wl);
+  else if (s === "half") {
+    dazzlePaint(g, 0, W, wl, 7);
+    g.save(); g.beginPath(); // ragged paint edge at u ~0.475: the bow half still grey
+    g.moveTo(W * 0.475, 0); for (let y = 0; y <= wl; y += 32) g.lineTo(W * (0.475 + 0.006 * Math.sin(y * 0.37)), y);
+    g.lineTo(W, wl); g.lineTo(W, 0); g.closePath(); g.clip(); greyPaint(g, 0, W, wl); g.restore();
+  } else dazzlePaint(g, 0, W, wl, s === "false" ? 11 : 7);
+  if (s === "false") { // a painted FALSE bow wave near the stern + a dark broken "stern" at the real bow
+    g.fillStyle = DZ_INK; g.beginPath(); g.moveTo(0, wl * 0.15); g.lineTo(W * 0.2, wl * 0.05); g.lineTo(W * 0.24, wl); g.lineTo(0, wl); g.closePath(); g.fill();
+    g.fillStyle = "#ffffff"; g.beginPath(); g.moveTo(W * 0.02, wl); g.quadraticCurveTo(W * 0.1, wl * 0.45, W * 0.19, wl * 0.62);
+    g.quadraticCurveTo(W * 0.12, wl * 0.8, W * 0.16, wl); g.closePath(); g.fill();
+    g.fillStyle = DZ_PALE; g.beginPath(); g.moveTo(W * 0.86, 0); g.lineTo(W, 0); g.lineTo(W, wl); g.lineTo(W * 0.93, wl); g.closePath(); g.fill();
+  }
+  g.fillStyle = "#1c1c20"; g.fillRect(0, wl - 10, W, 12);           // black boot line
+  g.fillStyle = "#9c3a2c"; g.fillRect(0, wl + 2, W, H - wl);         // red antifouling below the waterline
+});
+const superTex = (s: DzScheme) => ctex("dzSuper_" + s, 512, 256, (g) => {
+  if (s === "grey" || s === "half") greyPaint(g, 0, 512, 256); else dazzlePaint(g, 0, 512, 256, s === "false" ? 23 : 19);
+  g.fillStyle = "#2a2f3a"; for (let x = 30; x < 500; x += 56) { g.beginPath(); g.arc(x, 110, 11, 0, 7); g.fill(); } // portholes
+});
+const funnelTex = (s: DzScheme) => ctex("dzFun_" + s, 256, 512, (g) => {
+  if (s === "grey" || s === "half") greyPaint(g, 0, 256, 512); else dazzlePaint(g, 0, 256, 512, s === "false" ? 31 : 29);
+  g.fillStyle = "#16161a"; g.fillRect(0, 0, 256, 70);
+});
+/** a 1917 cargo steamer, bow toward local +x, waterline at y 0. set(scheme) swaps the paint (all schemes prebuilt). */
+export const steamer = (L = 40, B = 9) => {
+  const grp = new THREE.Group(), y0 = -2, deck = 6.5, sx = -L / 2 + 3.2, bowS = L / 2 - 0.22 * L;
+  const zOf = (x: number) => {
+    if (x < sx) return (B / 2) * Math.sqrt(Math.max(0, 1 - ((sx - x) / 3.2) ** 2));
+    if (x > bowS) return (B / 2) * Math.max(0, (L / 2 - x) / (L / 2 - bowS)) ** 0.75;
+    return B / 2;
+  };
+  const yTop = (x: number) => deck + 1.3 * Math.max(0, (x - L / 4) / (L / 4)) ** 2;
+  const N = 44, xs = Array.from({ length: N + 1 }, (_, i) => -L / 2 + (L * i) / N);
+  const wall: THREE.BufferGeometry[] = [], top: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < N; i++) {
+    const xa = xs[i], xb = xs[i + 1], za = zOf(xa), zb = zOf(xb), ua = i / N, ub = (i + 1) / N;
+    wall.push(quad(V(xa, y0, za), V(xb, y0, zb), V(xb, yTop(xb), zb), V(xa, yTop(xa), za), ub, 1, ua, 0));
+    wall.push(quad(V(xb, y0, -zb), V(xa, y0, -za), V(xa, yTop(xa), -za), V(xb, yTop(xb), -zb), ua, 1, ub, 0));
+    top.push(quad(V(xa, yTop(xa), za), V(xb, yTop(xb), zb), V(xb, yTop(xb), -zb), V(xa, yTop(xa), -za)));
+  }
+  const wallGeo = mergeGeometries(wall, false), topGeo = mergeGeometries(top, false);
+  const deckMat = lam("dzDeck", () => ({ color: "#9a7655" }));
+  const steel = lam("dzSteel", () => ({ color: "#5d646d" })), dark = lam("dzDark", () => ({ color: "#2b2f37" }));
+  const glass = lam("dzWin", () => ({ color: "#1f2a38", emissive: "#2a3a50" }));
+  const schemes: Record<string, THREE.Group> = {};
+  for (const s of ["grey", "dazzle", "half", "false"] as DzScheme[]) {
+    const sg = new THREE.Group(), b = new Batch();
+    b.add(wallGeo, lam("dzHullM_" + s, () => ({ map: hullTex(s) })));
+    const sup = lam("dzSupM_" + s, () => ({ map: superTex(s) }));
+    b.add(boxGeo(V(-L * 0.13, deck, -B * 0.33), V(L * 0.1, deck + 2.8, B * 0.33)), sup);       // deck house
+    b.add(boxGeo(V(-L * 0.02, deck + 2.8, -B * 0.29), V(L * 0.08, deck + 4.7, B * 0.29)), sup);  // bridge
+    b.add(boxGeo(V(L * 0.04, deck + 4.7, -B * 0.31), V(L * 0.085, deck + 5.0, B * 0.31)), dark);  // bridge roof
+    b.add(new THREE.CylinderGeometry(L * 0.034, L * 0.036, 6.4, 20).translate(-L * 0.075, deck + 2.8 + 3.2, 0), lam("dzFunM_" + s, () => ({ map: funnelTex(s) })));
+    b.build(sg); grp.add(sg); schemes[s] = sg;
+  }
+  const b = new Batch();
+  b.add(topGeo, deckMat);
+  b.add(boxGeo(V(L * 0.085 - 0.05, deck + 3.3, -B * 0.28), V(L * 0.085 + 0.02, deck + 4.2, B * 0.28)), glass); // bridge windows
+  for (const mx of [L * 0.3, -L * 0.33]) {
+    b.add(new THREE.CylinderGeometry(0.16, 0.22, 14, 8).translate(mx, deck + 7, 0), steel);                   // mast
+    b.add(new THREE.CylinderGeometry(0.1, 0.1, B * 0.8, 6).rotateX(Math.PI / 2).translate(mx, deck + 10.5, 0), steel); // yard
+    b.add(boxGeo(V(mx - 2.2, deck, -1.6), V(mx + 2.2, deck + 1.1, 1.6)), dark);                              // hatch
+  }
+  b.build(grp);
+  const set = (s: DzScheme) => { for (const k in schemes) schemes[k].visible = k === s; };
+  set("grey");
+  return { g: grp, set };
+};
+
+// ---------------- the dockyard ----------------
+const shopTex = () => ctex("dzShop", 1024, 640, (g) => {
+  g.fillStyle = "#b9584a"; g.fillRect(0, 0, 1024, 640);
+  g.strokeStyle = "rgba(60,20,20,0.25)"; g.lineWidth = 3;
+  for (let y = 0; y < 640; y += 22) { g.beginPath(); g.moveTo(0, y); g.lineTo(1024, y); g.stroke(); }
+  g.fillStyle = "#24365e"; g.fillRect(90, 150, 840, 110);                      // sign board
+  g.fillStyle = "#f3e6c4"; g.font = "bold 86px Georgia, serif"; g.textAlign = "center"; g.fillText("BARBER", 512, 236);
+  g.fillStyle = "#3a2a22"; g.fillRect(140, 320, 300, 320); g.fillRect(560, 320, 330, 230); // door + window frame
+  g.fillStyle = "#c9dde6"; g.fillRect(580, 340, 290, 190);                    // window glass
+  g.fillStyle = "#e9d7b0"; g.fillRect(600, 470, 250, 14);                     // shelf
+  g.fillStyle = "#6a4a36"; g.fillRect(160, 340, 260, 300);                    // door panel
+  g.fillStyle = "#d9b45a"; g.beginPath(); g.arc(395, 500, 9, 0, 7); g.fill();
+});
+const wareTex = (k: number) => ctex("dzWare" + k, 1024, 512, (g, r) => {
+  g.fillStyle = k ? "#8f6a52" : "#a77b5c"; g.fillRect(0, 0, 1024, 512);
+  for (let y = 0; y < 512; y += 16) for (let x = (y / 16) % 2 ? 0 : 24; x < 1024; x += 48) { g.fillStyle = `rgba(60,30,20,${0.05 + r() * 0.12})`; g.fillRect(x, y, 46, 14); }
+  g.fillStyle = "#3b2c26"; for (let i = 0; i < 5; i++) g.fillRect(70 + i * 190, 260, 120, 252);  // loading doors
+  g.fillStyle = "#e5d6b2"; g.font = "bold 54px Georgia, serif"; g.fillText(k ? "No. 4 SHED" : "ADMIRALTY STORES", 60, 90);
+});
+/** the barber's pole: glass cylinder of red / white / blue helix stripes (spin = stripes climb) */
+const poleTex = () => ctex("dzPole", 256, 512, (g) => {
+  g.fillStyle = "#f7f4ee"; g.fillRect(0, 0, 256, 512);
+  const cols = ["#d0302c", "#f7f4ee", "#2b4fa0", "#f7f4ee"];
+  for (let k = -8; k < 16; k++) {
+    g.fillStyle = cols[((k % 4) + 4) % 4]; g.beginPath();
+    g.moveTo(0, k * 64); g.lineTo(256, k * 64 + 256); g.lineTo(256, k * 64 + 320); g.lineTo(0, k * 64 + 64); g.closePath(); g.fill();
+  }
+});
+export const barberPole = () => {
+  const grp = new THREE.Group(), b = new Batch();
+  const brass = lam("dzBrass", () => ({ color: "#d5a640", emissive: "#3a2808" }));
+  const t = poleTex(); t.repeat.set(1, 1.6);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.25, 32, 1, true), lam("dzPoleM", () => ({ map: t, emissive: "#222222" })));
+  b.add(new THREE.CylinderGeometry(0.13, 0.13, 0.08, 24).translate(0, 0.665, 0), brass);
+  b.add(new THREE.SphereGeometry(0.11, 16, 10).translate(0, 0.76, 0), brass);
+  b.add(new THREE.CylinderGeometry(0.13, 0.13, 0.08, 24).translate(0, -0.665, 0), brass);
+  b.add(new THREE.SphereGeometry(0.08, 12, 8).translate(0, -0.74, 0), brass);
+  b.add(boxGeo(V(-0.03, 0.55, -0.32), V(0.03, 0.6, 0)), brass); b.add(boxGeo(V(-0.03, -0.6, -0.32), V(0.03, -0.55, 0)), brass); // wall brackets
+  b.build(grp); grp.add(pole);
+  return { g: grp, spin: (t: number) => { pole.rotation.y = -t * 2.4; } };
+};
+export const buildDock = (root: THREE.Object3D) => {
+  const b = new Batch();
+  const cop = lam("dzQuayTop", () => ({ map: rep(cobbleHD(), 40, 12) }));
+  const wallS = lam("dzQuayWall", () => ({ map: rep(stoneHD(), 30, 1.2) }));
+  b.add(quad(V(-140, 2, 0), V(160, 2, 0), V(160, 2, -60), V(-140, 2, -60)), cop);
+  b.add(quad(V(-140, -4, 0), V(160, -4, 0), V(160, 2, 0), V(-140, 2, 0)), wallS);
+  b.add(boxGeo(V(-140, 1.95, -0.25), V(160, 2.18, 0.02)), lam("dzCope", () => ({ color: "#bdb3a2" })));
+  // far quays closing the basin
+  b.add(boxGeo(V(-160, -2, 140), V(200, 2, 175)), wallS);
+  b.add(boxGeo(V(-160, -2, -10), V(-110, 2, 175)), wallS);
+  // warehouses behind the quay + across the basin
+  for (const [x0, x1, z, k, h] of [[-60, -10, -24, 0, 9], [-5, 40, -26, 1, 11], [86, 130, -22, 1, 9], [-120, -40, 150, 0, 12], [20, 110, 152, 1, 14]] as number[][]) {
+    const m = lam("dzWareM" + k, () => ({ map: wareTex(k) }));
+    b.add(boxGeo(V(x0, 2, z - 12), V(x1, 2 + h, z)), m);
+    b.add(boxGeo(V(x0 - 0.4, 2 + h, z - 12.4), V(x1 + 0.4, 2 + h + 0.6, z + 0.4)), lam("dzRoof", () => ({ color: "#4d5560" })));
+  }
+  // barber's shop on the quay (front at z -9, x 50..57)
+  b.add(boxGeo(V(50, 2, -15), V(57, 6.4, -9)), lam("dzShopSide", () => ({ color: "#a84f43" })));
+  b.add(quad(V(50, 2, -8.99), V(57, 2, -8.99), V(57, 6.4, -8.99), V(50, 6.4, -8.99)), lam("dzShopM", () => ({ map: shopTex() })));
+  b.add(boxGeo(V(49.7, 6.4, -15.3), V(57.3, 6.8, -8.7)), lam("dzRoof", () => ({ color: "#4d5560" })));
+  // cranes (tower + jib), bollards, crates, rope coils
+  const iron = lam("dzIron", () => ({ color: "#5a4a40" })), red = lam("dzCraneRed", () => ({ color: "#a8473a" }));
+  for (const [x, z, yaw] of [[-30, -6, 0.3], [110, -6, 0.2]]) {
+    const m = new THREE.Matrix4().makeRotationY(yaw).setPosition(x, 0, z);
+    b.add(boxGeo(V(-1.2, 2, -1.2), V(1.2, 16, 1.2)), red, m);
+    b.add(boxGeo(V(-1.6, 16, -1.6), V(1.6, 18, 1.6)), iron, m);
+    b.add(boxGeo(V(-0.5, 17.2, -0.5), V(0.5, 17.9, 16)), red, m);
+  }
+  const boll = lam("dzBollard", () => ({ color: "#2d3036" }));
+  for (let x = -100; x <= 140; x += 12) b.add(new THREE.CylinderGeometry(0.28, 0.34, 0.7, 12).translate(x, 2.35, -0.8), boll);
+  const crate = lam("dzCrate", () => ({ map: rep(planksHD(), 1, 1) }));
+  for (const [x, z, s] of [[-12, -5, 1.3], [-10.4, -5.4, 1.1], [-11.2, -5.2, 0.9], [26, -6, 1.4], [62, -10, 1.0], [63.3, -10.4, 1.2], [95, -4.5, 1.3]] as number[][])
+    b.add(boxGeo(V(x - s / 2, 2, z - s / 2), V(x + s / 2, 2 + s, z + s / 2)), crate);
+  // painters' scaffold beside the hook hull: two trestles + a plank (top y 3.4)
+  const wood = lam("dzScaff", () => ({ color: "#b48a5e" }));
+  b.add(boxGeo(V(-3.8, 3.25, -0.95), V(3.8, 3.4, -0.25)), wood);
+  for (const x of [-3.2, 3.2]) for (const z of [-0.9, -0.3]) b.add(boxGeo(V(x - 0.05, 2, z - 0.05), V(x + 0.05, 3.25, z + 0.05)), wood);
+  b.add(new THREE.CylinderGeometry(0.22, 0.22, 0.42, 14).translate(-1.4, 3.61, -0.55), lam("dzPaintPot", () => ({ color: "#30343a" }))); // paint pot
+  b.build(root);
+};
+/** a long-handled roller for the hook painter: from the hands to the hull (both world points) */
+export const roller = () => {
+  const grp = new THREE.Group();
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1, 8), lam("dzHandle", () => ({ color: "#c09060" })));
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.42, 16).rotateZ(Math.PI / 2), lam("dzRollerHead", () => ({ color: "#1b1d22" })));
+  grp.add(handle, head);
+  const a = new THREE.Vector3(), c = new THREE.Vector3();
+  const pose = (hand: [number, number, number], tip: [number, number, number]) => {
+    a.set(...hand); c.set(...tip);
+    handle.position.copy(a).add(c).multiplyScalar(0.5); handle.scale.set(1, a.distanceTo(c), 1);
+    handle.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), c.clone().sub(a).normalize());
+    head.position.copy(c);
+  };
+  return { g: grp, pose };
+};
+
+// ---------------- sea props ----------------
+export const periscope = () => {
+  const grp = new THREE.Group(), b = new Batch(), m = lam("dzScope", () => ({ color: "#3d434b" }));
+  b.add(new THREE.CylinderGeometry(0.09, 0.11, 3, 10).translate(0, -1.5 + 1.6, 0), m);
+  b.add(boxGeo(V(-0.11, 1.55, -0.13), V(0.11, 1.78, 0.2)), m);
+  b.add(boxGeo(V(-0.07, 1.6, 0.2), V(0.07, 1.72, 0.22)), lam("dzLens", () => ({ color: "#9fc4dc", emissive: "#3a5a70" })));
+  b.build(grp);
+  return grp;
+};
+
+// ---------------- the Dazzle Section studio (z = STORY.SZ) ----------------
+const posterTex = (k: number) => ctex("dzPoster" + k, 512, 384, (g) => {
+  g.fillStyle = "#efe6cf"; g.fillRect(0, 0, 512, 384);
+  dazzlePaint(g, 40, 472, 150, 41 + k * 7);
+  g.save(); g.globalCompositeOperation = "destination-in"; g.beginPath(); // clip the dazzle to a ship side view
+  g.moveTo(40, 120); g.lineTo(472, 120); g.lineTo(440, 230); g.lineTo(70, 230); g.closePath(); g.fill(); g.restore();
+  g.fillStyle = "#efe6cf"; g.fillRect(0, 0, 512, 110); g.fillRect(0, 232, 512, 152);
+  dazzlePaint(g, 150, 330, 80, 50 + k); g.fillStyle = "#efe6cf"; g.fillRect(150, 0, 30, 80); g.fillRect(300, 0, 30, 80); // deck house
+  g.fillStyle = "#3b4a6a"; g.font = "bold 30px Georgia, serif"; g.fillText(["DESIGN No. 12", "PORT SIDE", "TYPE 4 B"][k % 3], 40, 300);
+  g.strokeStyle = "#5b4630"; g.lineWidth = 16; g.strokeRect(8, 8, 496, 368);
+});
+const backdropTex = () => ctex("dzBackdrop", 1024, 512, (g) => {
+  const sky = g.createLinearGradient(0, 0, 0, 260); sky.addColorStop(0, "#9cc6e6"); sky.addColorStop(1, "#dcecf5");
+  g.fillStyle = sky; g.fillRect(0, 0, 1024, 260);
+  g.fillStyle = "#4f7fa8"; g.fillRect(0, 260, 1024, 252);
+  g.strokeStyle = "rgba(255,255,255,0.45)"; g.lineWidth = 3;
+  for (let i = 0; i < 40; i++) { const x = (i * 197) % 1024, y = 280 + ((i * 53) % 220); g.beginPath(); g.moveTo(x, y); g.lineTo(x + 40, y); g.stroke(); }
+});
+export const buildStudio = (root: THREE.Object3D, z0: number) => {
+  const b = new Batch();
+  b.add(quad(V(-5, 0, z0 + 7), V(5, 0, z0 + 7), V(5, 0, z0 - 4.5), V(-5, 0, z0 - 4.5)), lam("dzFloor", () => ({ map: rep(planksHD(), 3, 3) })));
+  const wallM = lam("dzWall", () => ({ color: "#d9cdb0" })), pan = lam("dzPanel", () => ({ color: "#7a5a40" }));
+  b.add(quad(V(-5, 0, z0 - 4.5), V(5, 0, z0 - 4.5), V(5, 5, z0 - 4.5), V(-5, 5, z0 - 4.5)), wallM);
+  b.add(quad(V(5, 0, z0 - 4.5), V(5, 0, z0 + 7), V(5, 5, z0 + 7), V(5, 5, z0 - 4.5)), wallM);
+  b.add(quad(V(-5, 0, z0 + 7), V(-5, 0, z0 - 4.5), V(-5, 5, z0 - 4.5), V(-5, 5, z0 + 7)), wallM);
+  b.add(boxGeo(V(-5, 0, z0 - 4.5), V(5, 1.1, z0 - 4.42)), pan);  // wainscot
+  b.add(boxGeo(V(4.92, 0, z0 - 4.5), V(5, 1.1, z0 + 7)), pan);
+  b.add(boxGeo(V(-5, 0, z0 - 4.5), V(-4.92, 1.1, z0 + 7)), pan);
+  b.add(quad(V(-5, 5, z0 - 4.5), V(5, 5, z0 - 4.5), V(5, 5, z0 + 7), V(-5, 5, z0 + 7)), lam("dzCeil", () => ({ color: "#efe7d6" })));
+  for (const [x, k] of [[-3.1, 0], [-0.9, 1], [3.2, 2]] as number[][])  // dazzle design boards on the back wall
+    b.add(quad(V(x - 0.8, 1.7, z0 - 4.4), V(x + 0.8, 1.7, z0 - 4.4), V(x + 0.8, 2.9, z0 - 4.4), V(x - 0.8, 2.9, z0 - 4.4)), lam("dzPosterM" + k, () => ({ map: posterTex(k) })));
+  for (const [z, k] of [[z0 - 1.5, 1], [z0 + 1.6, 0]] as number[][])  // and on the right wall
+    b.add(quad(V(4.9, 1.7, z + 0.8), V(4.9, 1.7, z - 0.8), V(4.9, 2.9, z - 0.8), V(4.9, 2.9, z + 0.8)), lam("dzPosterM" + k, () => ({ map: posterTex(k) })));
+  // window on the left wall
+  b.add(quad(V(-4.95, 1.4, z0 + 2.5), V(-4.95, 1.4, z0 - 0.5), V(-4.95, 3.6, z0 - 0.5), V(-4.95, 3.6, z0 + 2.5)), lam("dzWindow", () => ({ color: "#cfe6f2", emissive: "#a8c8dc" })));
+  // the model table with a turntable and a painted sea backdrop
+  const T = STORY.TABLE, wood = lam("dzTable", () => ({ color: "#6e4b34" }));
+  b.add(boxGeo(V(T[0] - 0.85, T[1] - 0.06, T[2] - 0.6), V(T[0] + 0.85, T[1], T[2] + 0.6)), wood);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(boxGeo(V(T[0] + sx * 0.75 - 0.04, 0, T[2] + sz * 0.5 - 0.04), V(T[0] + sx * 0.75 + 0.04, T[1] - 0.06, T[2] + sz * 0.5 + 0.04)), wood);
+  b.add(new THREE.CylinderGeometry(0.44, 0.46, 0.035, 40).translate(T[0], T[1] + 0.017, T[2]), lam("dzTurn", () => ({ color: "#3b4f6e" })));
+  b.add(quad(V(T[0] - 1.3, T[1], T[2] - 0.75), V(T[0] + 1.3, T[1], T[2] - 0.75), V(T[0] + 1.3, T[1] + 1.25, T[2] - 0.75), V(T[0] - 1.3, T[1] + 1.25, T[2] - 0.75)), lam("dzBackdropM", () => ({ map: backdropTex() })));
+  // brass periscope on a tripod (eyepiece toward +z, top 1.32 m so the King's face clears it)
+  const S = STORY.SCOPE, brass = lam("dzBrassScope", () => ({ color: "#c08a26", emissive: "#6a4208" })), rubber = lam("dzRubber", () => ({ color: "#15161a" }));
+  b.add(new THREE.CylinderGeometry(0.055, 0.055, 0.5, 14).translate(S[0], 1.05, S[2]), brass);
+  b.add(boxGeo(V(S[0] - 0.08, 1.2, S[2] - 0.08), V(S[0] + 0.08, 1.32, S[2] + 0.16)), brass);
+  b.add(boxGeo(V(S[0] - 0.07, 0.8, S[2] - 0.2), V(S[0] + 0.07, 0.92, S[2] + 0.07)), brass);
+  b.add(new THREE.CylinderGeometry(0.045, 0.05, 0.12, 16).rotateX(Math.PI / 2).translate(S[0], 1.26, S[2] + 0.21), rubber); // eyepiece
+  b.add(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 16).rotateX(Math.PI / 2).translate(S[0], 0.86, S[2] - 0.215), lam("dzLens", () => ({ color: "#9fc4dc", emissive: "#3a5a70" }))); // objective lens
+  for (const y of [0.85, 1.05, 1.25]) b.add(new THREE.CylinderGeometry(0.064, 0.064, 0.025, 16).translate(S[0], y, S[2]), rubber); // bands
+  for (const a of [0, 2.1, 4.2]) b.add(new THREE.CylinderGeometry(0.02, 0.02, 0.9, 6).rotateZ(0.32).rotateY(a).translate(S[0] + 0.14 * Math.cos(a), 0.42, S[2] - 0.14 * Math.sin(a)), lam("dzTripod", () => ({ color: "#3a2a20" })));
+  // a shelf of finished ship models on the left wall
+  b.add(boxGeo(V(-4.9, 1.45, z0 - 3.8), V(-4.5, 1.5, z0 - 1.6)), wood);
+  b.build(root);
+};

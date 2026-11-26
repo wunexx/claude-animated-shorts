@@ -1,0 +1,266 @@
+// LIBRARY PART: river town (river along x, quays at z = +-30, stone bridge at x = 0, houses on both banks, church, hills)
+// Append to the END of the short's build.ts (below "library parts appended below"), then register in sets.ts:
+//   SETS.town = townSet;
+// Needs: story.ts exports D0 (quay height, 6.0) and smooth. Shots use place "town". ~30 ms of build per still.
+// Origin: La Llorona / Two Suns (storybook template v2)
+const domeTex = () => ctex("domeTile", 256, 256, (g) => {
+  g.fillStyle = "#e8b04a"; g.fillRect(0, 0, 256, 256);
+  for (let y = 0; y < 256; y += 32) for (let x = (y / 32) % 2 ? 16 : 0; x < 256; x += 32) { g.fillStyle = "#3f6fb5"; g.fillRect(x + 4, y + 4, 12, 12); }
+  g.strokeStyle = "rgba(60,40,30,0.35)"; g.lineWidth = 2;
+  for (let y = 0; y < 256; y += 16) { g.beginPath(); g.moveTo(0, y); g.lineTo(256, y); g.stroke(); }
+});
+/** quay lamp: dark iron post, square lantern; its glass goes to the glow batch */
+const lamp = (b: Batch, x: number, y: number, z: number) => {
+  if (inTheWay(x - 0.3, x + 0.3, y, y + 3.4, z - 0.3, z + 0.3, true)) return;
+  const iron = lam("lampIron", () => ({ color: "#2e3240" }));
+  b.add(new THREE.CylinderGeometry(0.06, 0.09, 2.9, 8).translate(x, y + 1.45, z), iron);
+  b.add(boxGeo(V(x - 0.2, y + 2.9, z - 0.2), V(x + 0.2, y + 2.95, z + 0.2)), iron);
+  b.add(new THREE.ConeGeometry(0.3, 0.28, 4).rotateY(Math.PI / 4).translate(x, y + 3.55, z), iron);
+  if (glowB) glowB.add(new THREE.BoxGeometry(0.3, 0.45, 0.3).translate(x, y + 3.18, z), GLOW_WIN);
+  else b.add(new THREE.BoxGeometry(0.3, 0.45, 0.3).translate(x, y + 3.18, z), lam("lampGlass", () => ({ color: "#e9d9a6" })));
+};
+
+// ---------------- houses ----------------
+type Style = { wall: string; shutter: string; roof: string; timber?: boolean; brick?: boolean };
+// MAT pass: warm ochre / cream / sandstone / salmon walls + one blue-grey (the old pinks, whites and grey-blues read
+// lavender: the two-tone shade multiplies by a blue-violet, so a near-neutral albedo turns lilac on every shaded face)
+// round 3: saturation -35 % on every wall (neutral warm grey / beige; the salmon became a warm greige)
+// round 4: the pale greiges still read lavender-grey in shade -> a muted brick / cream / ochre / terracotta spread
+const STYLES: Style[] = [
+  { wall: "#e7b85c", shutter: "#2f6a43", roof: "#c4633f" },  // marigold ochre
+  { wall: "#d98f7c", shutter: "#2f5f6a", roof: "#b8644f" },  // terracotta pink
+  { wall: "#7fb3a6", shutter: "#5a3b2a", roof: "#c4633f" },  // faded turquoise
+  { wall: "#efdcb8", shutter: "#3f6fb5", roof: "#c9775a" },  // cream
+  { wall: "#e39a62", shutter: "#2f6a43", roof: "#b8644f" },  // coral orange
+  { wall: "#8fa4cf", shutter: "#5a3b2a", roof: "#c4633f" },  // cornflower blue
+  { wall: "#e8c98e", shutter: "#8c3b4a", roof: "#c9775a" },  // sand
+  { wall: "#c9876e", shutter: "#2f5f6a", roof: "#b8644f" },  // adobe red
+];
+const roofMat = (col: string) => lam("roof" + col, () => ({ map: roofHD(col, col === "#8f97a8"), side: THREE.DoubleSide }));
+
+/** gabled house: front facade (local +z) at width w, depth d, wall height h, ridge along local x (left out if it blocks a shot) */
+export const house = (b: Batch, x: number, z: number, yaw: number, w: number, d: number, h: number, si: number, y = STORY.D0) => {
+  const across = Math.abs(Math.sin(yaw)) > 0.5, hx = (across ? d : w) / 2 + 0.6, hz = (across ? w : d) / 2 + 0.6;
+  if (inTheWay(x - hx, x + hx, y, y + h + d * 0.42 + 1.2, z - hz, z + hz)) return;
+  const st = STYLES[si % STYLES.length];
+  const m = new THREE.Matrix4().makeRotationY(yaw).setPosition(x, y, z);
+  const front = lam(`hf${si}_${w}_${h}`, () => ({ map: facadeHD(`hf${si}_${w}_${h}`, w, h, { ...st, door: true }) }));
+  const side = lam(`hs${si}_${h}`, () => ({ map: facadeHD(`hs${si}_${h}`, 8, h, st) }));
+  const wall = lam("wall" + st.wall, () => ({ color: st.brick ? "#c8643f" : st.wall }));
+  const hw = w / 2, hd = d / 2, rh = d * 0.42, o = 0.35;
+  b.add(quad(V(-hw, 0, hd), V(hw, 0, hd), V(hw, h, hd), V(-hw, h, hd)), front, m);
+  b.add(quad(V(hw, 0, -hd), V(-hw, 0, -hd), V(-hw, h, -hd), V(hw, h, -hd)), side, m);
+  b.add(quad(V(-hw, 0, -hd), V(-hw, 0, hd), V(-hw, h, hd), V(-hw, h, -hd)), side, m);
+  b.add(quad(V(hw, 0, hd), V(hw, 0, -hd), V(hw, h, -hd), V(hw, h, hd)), side, m);
+  b.add(tri(V(-hw, h, -hd), V(-hw, h, hd), V(-hw, h + rh, 0)), wall, m);
+  b.add(tri(V(hw, h, hd), V(hw, h, -hd), V(hw, h + rh, 0)), wall, m);
+  const ru = (w + 2 * o) / 4, rv = Math.hypot(hd + o, rh) / 4, rm = roofMat(st.roof);
+  b.add(quad(V(-hw - o, h - 0.25, hd + o), V(hw + o, h - 0.25, hd + o), V(hw + o, h + rh, 0), V(-hw - o, h + rh, 0), ru, rv), rm, m);
+  b.add(quad(V(hw + o, h - 0.25, -hd - o), V(-hw - o, h - 0.25, -hd - o), V(-hw - o, h + rh, 0), V(hw + o, h + rh, 0), ru, rv), rm, m);
+  houseDetail(b, m, w, d, h, rh, 0);
+  if (glowB) { // lit windows on the front facade (night / dusk only: world.ts toggles the group)
+    const floors = Math.max(1, Math.floor(h / 2.8)), n = Math.max(1, Math.floor(w / 2.2)), gr = rng(Math.floor(Math.abs(x * 13.7 + z * 7.3)) + 3);
+    for (let fl = 0; fl < floors; fl++) for (let i = 0; i < n; i++) {
+      if ((fl === 0 && i === Math.floor(n / 2)) || gr() < 0.42) continue;
+      const cxw = -hw + ((i + 0.5) * w) / n, y0 = fl * 2.8 + 0.9;
+      glowB.add(quad(V(cxw - 0.42, y0, hd + 0.03), V(cxw + 0.42, y0, hd + 0.03), V(cxw + 0.42, y0 + 1.25, hd + 0.03), V(cxw - 0.42, y0 + 1.25, hd + 0.03)), GLOW_WIN, m);
+    }
+  }
+};
+
+// round 4: real 3D relief on every house (was a flat window-textured box): stone plinth, cornice under the eaves,
+// window sills + lintel hoods matching facadeHD's window layout, front door step + door hood, chimney cap and pot
+const UB = new THREE.BoxGeometry(1, 1, 1);
+const trimM = () => lam("trimStone", () => ({ color: "#efe3c8" }));
+const capM = () => lam("chimCap", () => ({ color: "#9a8778" }));
+const plinthM = () => lam("plinthHD", () => ({ map: stoneHD("copeHD") }));
+const ub = (b: Batch, mat: THREE.Material, m: THREE.Matrix4, x0: number, x1: number, y0: number, y1: number, z0: number, z1: number) =>
+  b.add(UB, mat, m.clone().multiply(new THREE.Matrix4().compose(V((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), new THREE.Quaternion(), V(x1 - x0, y1 - y0, z1 - z0))));
+const houseDetail = (b: Batch, m: THREE.Matrix4, w: number, d: number, h: number, rh: number, chx: number) => {
+  const hw = w / 2, hd = d / 2, tm = trimM(), floors = Math.max(1, Math.floor(h / 2.8));
+  b.add(boxGeo(V(-hw - 0.07, -0.05, -hd - 0.07), V(hw + 0.07, 0.45, hd + 0.07), 2), plinthM(), m);          // plinth
+  ub(b, tm, m, -hw - 0.12, hw + 0.12, h - 0.52, h - 0.25, hd, hd + 0.17);                                   // cornice front
+  ub(b, tm, m, -hw - 0.12, hw + 0.12, h - 0.52, h - 0.25, -hd - 0.17, -hd);                                 // cornice back
+  for (const s of [-1, 1]) ub(b, tm, m, s < 0 ? -hw - 0.17 : hw, s < 0 ? -hw : hw + 0.17, h - 0.52, h - 0.25, -hd - 0.12, hd + 0.12);
+  // windows: facadeHD puts nWin = floor(width / 2.2) per floor at (i + 0.5) / nWin, sill line fl * 2.8 + 0.9 m
+  const wins = (len: number, door: boolean, at: (u: number) => [number, number], out: [number, number]) => {
+    const n = Math.max(1, Math.floor(len / 2.2));
+    for (let fl = 0; fl < floors; fl++) for (let i = 0; i < n; i++) {
+      const [px, pz] = at((i + 0.5) / n), yb = fl * 2.8 + 0.9;
+      if (door && fl === 0 && i === Math.floor(n / 2)) {
+        const along = (k: number) => [px + out[1] * k, pz - out[0] * k] as const; // along the wall (perpendicular to out)
+        const [ax, az] = along(-0.82), [bx, bz] = along(0.82), [cx2, cz2] = along(-0.78), [dx2, dz2] = along(0.78);
+        ub(b, plinthM(), m, Math.min(ax, bx, ax + out[0] * 0.5), Math.max(ax, bx, ax + out[0] * 0.5), 0, 0.2, Math.min(az, bz, az + out[1] * 0.5), Math.max(az, bz, az + out[1] * 0.5)); // step
+        ub(b, tm, m, Math.min(cx2, dx2, cx2 + out[0] * 0.34), Math.max(cx2, dx2, cx2 + out[0] * 0.34), 2.3, 2.44, Math.min(cz2, dz2, cz2 + out[1] * 0.34), Math.max(cz2, dz2, cz2 + out[1] * 0.34)); // hood
+        continue;
+      }
+      for (const [y0, y1, dep, half] of [[yb - 0.2, yb - 0.08, 0.14, 0.6], [yb + 1.33, yb + 1.43, 0.08, 0.55]] as const) {
+        const ax = px - out[1] * half, az = pz + out[0] * half, bx = px + out[1] * half, bz = pz - out[0] * half;
+        ub(b, tm, m, Math.min(ax, bx, ax + out[0] * dep), Math.max(ax, bx, ax + out[0] * dep), y0, y1, Math.min(az, bz, az + out[1] * dep), Math.max(az, bz, az + out[1] * dep));
+      }
+    }
+  };
+  wins(w, true, (u) => [-hw + u * w, hd], [0, 1]);            // front (+z), u from -x to +x
+  wins(8, false, (u) => [hw - u * w, -hd], [0, -1]);          // back: side texture (8 m layout) stretched over w
+  wins(8, false, (u) => [-hw, -hd + u * d], [-1, 0]);         // left side (-x): side texture is always the 8 m layout
+  wins(8, false, (u) => [hw, hd - u * d], [1, 0]);            // right side (+x)
+};
+
+// ---------------- painted extras ----------------
+const chapelTex = () => ctex("chapel", 512, 512, (g) => {
+  g.fillStyle = "#e9e0cc"; g.fillRect(0, 0, 512, 512);
+  g.fillStyle = "rgba(0,0,0,.06)"; for (let y = 0; y < 512; y += 32) g.fillRect(0, y, 512, 2);
+  for (const cx of [128, 384]) {
+    g.fillStyle = "#33406b"; g.strokeStyle = "rgba(40,30,40,.85)"; g.lineWidth = 6;
+    g.beginPath(); g.moveTo(cx - 40, 430); g.lineTo(cx - 40, 190); g.arc(cx, 190, 40, Math.PI, 0); g.lineTo(cx + 40, 430); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = "rgba(160,200,255,.35)"; g.fillRect(cx - 30, 200, 16, 220);
+    g.strokeStyle = "#d9c9a0"; g.lineWidth = 4; g.beginPath(); g.moveTo(cx, 160); g.lineTo(cx, 430); g.moveTo(cx - 40, 300); g.lineTo(cx + 40, 300); g.stroke();
+  }
+});
+const clockTex = () => ctex("clock", 256, 256, (g) => {
+  g.fillStyle = "#f7f1e1"; g.strokeStyle = "#221f2e"; g.lineWidth = 12;
+  g.beginPath(); g.arc(128, 128, 112, 0, 7); g.fill(); g.stroke();
+  g.lineCap = "round";
+  for (let i = 0; i < 12; i++) { const a = (i * Math.PI) / 6; g.lineWidth = 8; g.beginPath(); g.moveTo(128 + 80 * Math.cos(a), 128 + 80 * Math.sin(a)); g.lineTo(128 + 96 * Math.cos(a), 128 + 96 * Math.sin(a)); g.stroke(); }
+  g.lineWidth = 12; g.beginPath(); g.moveTo(128, 128); g.lineTo(128, 62); g.stroke();
+  g.lineWidth = 9; g.beginPath(); g.moveTo(128, 128); g.lineTo(178, 150); g.stroke();
+});
+/** round 4: St George's cross (England, 1831): white field, red cross (the old red + yellow diamond read as Vietnam's flag) */
+export const flagTex = () => ctex("flagStGeorge", 256, 160, (g) => {
+  g.fillStyle = "#f4f0e6"; g.fillRect(0, 0, 256, 160);
+  g.fillStyle = "#c8323a"; g.fillRect(0, 62, 256, 36); g.fillRect(110, 0, 36, 160);
+  g.fillStyle = "rgba(120,100,90,0.10)"; g.fillRect(0, 150, 256, 10); // soft hem shade
+});
+
+// ---------------- town ----------------
+const inPark = (x: number, z: number) => z < 0 && x > 46 && x < 96 && z > -100 && z < -49;
+const inMill = (x: number, z: number) => z < 0 && x > -66 && x < -14 && z > -90 && z < -54;
+const inChurch = (x: number, z: number) => (z > 0 && x > 10 && x < 38 && z > 46 && z < 84) || (z > 0 && x > 86 && x < 110 && z > 60 && z < 84);
+
+export const buildTown = (root: THREE.Object3D, kit: Kit, rays: Ray[] = [], glow?: THREE.Object3D) => {
+  const b = new Batch(), r = rng(11);
+  sight = rays;
+  const gb = new Batch();
+  glowB = glow ? gb : null;
+  const pick = <T,>(a: T[]) => a[Math.floor(r() * a.length) % a.length];
+  for (const bank of [-1, 1]) {
+    const away = bank > 0 ? Math.PI : 0; // fronts face the river
+    // riverfront rows, fronts on the quay at |z| = 36.5
+    for (const sx of [-1, 1]) {
+      let x = 8.5;
+      while (x < 134) {
+        const w = pick([7, 9]), h = pick([7, 8.4, 9.8]), cx = sx * (x + w / 2), cz = bank * 40.5;
+        house(b, cx, cz, away, w, 8, h, Math.floor(r() * 8));
+        x += w + (r() < 0.25 ? 2.5 : 0.25);
+      }
+    }
+    // main street, fronts on |x| = 6
+    for (const sx of [-1, 1]) {
+      let z = 46;
+      while (z < 150) {
+        const w = pick([7, 9]), h = pick([7, 8.4, 9.8]);
+        if (!inChurch(sx * 10, bank * (z + w / 2))) house(b, sx * 10, bank * (z + w / 2), sx < 0 ? Math.PI / 2 : -Math.PI / 2, w, 8, h, Math.floor(r() * 8));
+        z += w + (r() < 0.2 ? 3 : 0.3);
+      }
+    }
+    // back rows
+    for (const zf of [52, 66, 80, 96]) for (const sx of [-1, 1]) {
+      let x = 17 + r() * 4;
+      while (x < 124) {
+        const w = pick([7, 9]), h = pick([7, 8.4, 9.8]), cx = sx * (x + w / 2), cz = bank * (zf + 4 + r() * 2);
+        if (r() > 0.22 && !inPark(cx, cz) && !inMill(cx, cz) && !inChurch(cx, cz)) house(b, cx, cz, away, w, 8, h, Math.floor(r() * 8));
+        x += w + 1 + r() * 4;
+      }
+    }
+  }
+  // parish church on the far bank: nave, twin bell towers with domed caps, a tiled dome over the crossing
+  const ch = lam("chapel", () => ({ map: chapelTex() })), st = lam("towerstone", () => ({ map: stoneHD("tstoneHD") }));
+  const tile = lam("domeTile", () => ({ map: domeTex() })), white = lam("lime", () => ({ color: "#f1e6cf" }));
+  b.add(boxGeo(V(18.5, STORY.D0, 57), V(29.5, STORY.D0 + 10, 82), 6), ch);
+  b.add(boxGeo(V(18.3, STORY.D0 + 10, 56.8), V(29.7, STORY.D0 + 10.5, 82.2), 2), white);
+  b.add(boxGeo(V(20.9, STORY.D0, 52.4), V(27.1, STORY.D0 + 12.5, 57.2), 4), st); // facade block
+  b.add(tri(V(20.9, STORY.D0 + 12.5, 52.4), V(27.1, STORY.D0 + 12.5, 52.4), V(24, STORY.D0 + 15, 52.4)), st);
+  for (const xc of [19.2, 28.8]) {
+    b.add(boxGeo(V(xc - 1.7, STORY.D0, 51.6), V(xc + 1.7, STORY.D0 + 14, 55.0), 4), st);
+    b.add(boxGeo(V(xc - 1.9, STORY.D0 + 14, 51.4), V(xc + 1.9, STORY.D0 + 14.4, 55.2), 2), white);
+    b.add(boxGeo(V(xc - 1.4, STORY.D0 + 14.4, 51.9), V(xc + 1.4, STORY.D0 + 18.2, 54.7), 2), white); // belfry
+    b.add(new THREE.SphereGeometry(1.45, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), tile, new THREE.Matrix4().makeTranslation(xc, STORY.D0 + 18.2, 53.3));
+    b.add(new THREE.CylinderGeometry(0.08, 0.08, 1.4, 6), capM(), new THREE.Matrix4().makeTranslation(xc, STORY.D0 + 20.3, 53.3));
+    if (glowB) glowB.add(new THREE.PlaneGeometry(1.0, 2.0).rotateY(Math.PI).translate(xc, STORY.D0 + 16.2, 51.86), GLOW_WIN);
+  }
+  b.add(new THREE.CylinderGeometry(3.6, 3.6, 2.6, 20, 1, true), white, new THREE.Matrix4().makeTranslation(24, STORY.D0 + 11.8, 74));
+  b.add(new THREE.SphereGeometry(3.8, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2), tile, new THREE.Matrix4().makeTranslation(24, STORY.D0 + 13.1, 74));
+  b.add(new THREE.CylinderGeometry(0.7, 0.7, 1.6, 10), white, new THREE.Matrix4().makeTranslation(24, STORY.D0 + 17.6, 74));
+  b.add(new THREE.SphereGeometry(0.75, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), tile, new THREE.Matrix4().makeTranslation(24, STORY.D0 + 18.4, 74));
+  const sl = roofMat("#c4633f");
+  // hills around the valley
+  const hill = new THREE.SphereGeometry(1, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2);
+  const hm = [lam("hillA", () => ({ color: "#78b257" })), lam("hillB", () => ({ color: "#6aa24e" })), lam("hillC", () => ({ color: "#8bbf63" }))];
+  ([[-360, 250, 190, 52, 120], [140, 380, 240, 64, 140], [430, 150, 170, 48, 130], [-440, -130, 190, 44, 150], [-90, -390, 250, 58, 140],
+    [320, -330, 210, 54, 130], [520, -60, 160, 40, 120], [-560, 60, 200, 46, 140]] as const).forEach(([x, z, sx, sy, sz], i) =>
+    b.add(hill, hm[i % 3], new THREE.Matrix4().compose(V(x, STORY.D0 - 2, z), new THREE.Quaternion(), V(sx, sy, sz))));
+  // trees: quays, gardens, valley, hilltops
+  const trees = ["tree_oak", "tree_default", "tree_detailed", "tree_fat", "tree-high-round", "tree"];
+  for (const bank of [-1, 1]) for (let x = -130; x <= 130; x += 22) if (Math.abs(x) > 12) prop(b, kit, pick(trees), x + r() * 4, STORY.D0, bank * 33.6, 7 + r() * 2.5, r() * 6);
+  for (let i = 0; i < 140; i++) {
+    const x = (r() - 0.5) * 520, z = (r() < 0.5 ? -1 : 1) * (48 + r() * 220);
+    if (inPark(x, z) || inMill(x, z) || inChurch(x, z) || Math.abs(x) < 16) continue;
+    prop(b, kit, pick(trees), x, STORY.D0, z, 7 + r() * 4, r() * 6);
+  }
+  for (let i = 0; i < 60; i++) {
+    const a = r() * Math.PI * 2, d = 230 + r() * 160;
+    prop(b, kit, pick(["tree_cone", "tree_default", "tree_oak"]), Math.cos(a) * d * 1.3, STORY.D0, Math.sin(a) * d, 12 + r() * 6, r() * 6);
+  }
+  // quay lamps (iron post + lantern; the lantern glass glows at dusk and night)
+  for (const bank of [-1, 1]) for (let x = -126; x <= 126; x += 14) if (Math.abs(x) > 6) lamp(b, x, STORY.D0, bank * 31.0);
+  for (const [x, z] of [[-3.1, -30.6], [3.1, -30.6], [-3.1, 30.6], [3.1, 30.6]]) lamp(b, x, STORY.D0, z);
+  prop(b, kit, "canoe", -19, 0.02, 27.6, 0.7, 1.5);
+  b.build(root);
+  if (glow) gb.build(glow, false);
+  glowB = null;
+  sight = [];
+};
+
+
+// ---------------- town base: grass banks, cobbled quays, river walls, river bed + water, stone bridge ----------------
+import { grassHD, cobbleHD, bed } from "./paint";
+import type { SetCtx, SetHooks } from "./sets";
+const tQuad = (x0: number, x1: number, z0: number, z1: number, u: number, v: number, dy = 0) => flatQuad(x0, x1, z0, z1, u, v, STORY.D0 + dy);
+const tWall = (x0: number, x1: number, z: number, dir: number) => {
+  const g = new THREE.BufferGeometry(), y0 = -0.6, y1 = STORY.D0;
+  g.setAttribute("position", new THREE.Float32BufferAttribute([x0, y0, z, x1, y0, z, x1, y1, z, x0, y0, z, x1, y1, z, x0, y1, z], 3));
+  g.setAttribute("normal", new THREE.Float32BufferAttribute(Array(6).fill([0, 0, dir]).flat(), 3));
+  const u = Math.abs(x1 - x0) / 4, v = (y1 + 0.6) / 4;
+  g.setAttribute("uv", new THREE.Float32BufferAttribute([0, 0, u, 0, u, v, 0, 0, u, v, 0, v], 2));
+  return g;
+};
+export const buildTownBase = (c: SetCtx) => {
+  const b = new Batch();
+  const grass = lam("grassHD", () => ({ map: grassHD() })), cobble = lam("cobbleHD", () => ({ map: cobbleHD() }));
+  const wall = lam("wallHD", () => ({ map: stoneHD("wallHD", ["#b99e7c", "#b49878", "#bca381", "#b09474"], "#a68a6a") }));
+  const cope = lam("copeHD", () => ({ map: stoneHD("copeHD", ["#e6dccd", "#ddd3c3", "#ece4d6", "#d6cbba"], "#aea293") }));
+  const bridge = lam("bridgeHD", () => ({ map: stoneHD("bridgeHD", ["#d9b98e", "#cfae82", "#e2c49a", "#c6a378"], "#9c7f5c") }));
+  for (const s of [-1, 1]) {
+    const zn = s * 30, zf = s * 900;
+    b.add(s < 0 ? tQuad(-900, 900, zf, zn, 450, 217.5) : tQuad(-900, 900, zn, zf, 450, 217.5), grass);
+    b.add(s < 0 ? tQuad(-160, 160, -36.5, -30, 80, 1.625, 0.012) : tQuad(-160, 160, 30, 36.5, 80, 1.625, 0.012), cobble);
+    b.add(s < 0 ? tQuad(-6, 6, -170, -36.5, 3, 33.375, 0.012) : tQuad(-6, 6, 36.5, 170, 3, 33.375, 0.012), cobble);
+    b.add(s < 0 ? tWall(-900, 900, -30, 1) : tWall(900, -900, 30, -1), wall);
+    for (const [x0, x1] of [[-600, -3.2], [3.2, 600]]) b.add(boxGeo(V(x0, STORY.D0, s < 0 ? -30.5 : 30), V(x1, STORY.D0 + 0.75, s < 0 ? -30 : 30.5), 2), cope);
+    b.add(boxGeo(V(-600, STORY.D0 - 0.05, s < 0 ? -30.6 : 29.4), V(600, STORY.D0 + 0.02, s < 0 ? -29.4 : 30.6), 2), cope);
+  }
+  b.add(tQuad(-900, 900, -30, 30, 225, 7.5, -0.6 - STORY.D0), lam("bed", () => ({ map: bed() })));
+  b.add(boxGeo(V(-2.6, STORY.D0 - 0.9, -30.6), V(2.6, STORY.D0, 30.6), 2), bridge);
+  for (const sx of [-1, 1]) {
+    b.add(boxGeo(V(sx * 2.6 - (sx > 0 ? 0.32 : 0), STORY.D0, -30.6), V(sx * 2.6 + (sx < 0 ? 0.32 : 0), STORY.D0 + 0.85, 30.6), 2), bridge);
+    b.add(boxGeo(V(sx * 2.6 - (sx > 0 ? 0.38 : -0.06), STORY.D0 + 0.85, -30.7), V(sx * 2.6 + (sx < 0 ? 0.38 : 0.06), STORY.D0 + 0.98, 30.7), 2), cope);
+  }
+  for (const zc of [-15, 0, 15]) {
+    b.add(boxGeo(V(-2.4, -0.6, zc - 1.1), V(2.4, STORY.D0 - 0.9, zc + 1.1), 2), bridge);
+    for (const sx of [-1, 1]) { const cw = new THREE.CylinderGeometry(1.1, 1.1, STORY.D0 - 0.3, 3); cw.rotateY(sx > 0 ? Math.PI / 2 : -Math.PI / 2); b.add(cw, bridge, new THREE.Matrix4().makeTranslation(sx * 2.4, (STORY.D0 - 0.9 - 0.6) / 2 - 0.3, zc)); }
+  }
+  b.build(c.root);
+  c.water(flatQuad(-900, 900, -30, 30, 1, 1, 0));
+};
+/** the whole river town as one set: base + houses / church / hills / trees / quay lamps */
+export const townSet = (c: SetCtx): SetHooks => { buildTownBase(c); buildTown(c.root, c.kit, c.rays, c.glow); return { clouds: true, streak: true }; };

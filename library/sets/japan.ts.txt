@@ -1,0 +1,373 @@
+// LIBRARY PART: Sengoku Japan sets - kyotoSet (machiya street, roofed mission gate with falling doors, 3-storey Nanban-ji, blossoms),
+// hallSet (audience hall: tatami, dais, six-panel gold screen, shoji), harbourSet (jetty, black Portuguese ship with red-cross sails), templeSet (Honno-ji: hipped roof, earth walls, nobori banners, fire glows).
+// Append to the END of build.ts, register in sets.ts: kyoto/hall/sea/temple: (c) => kyotoSet(c) ... Needs story.ts exports HX, SX, TZ, GATE_Z, DOOR, clamp01.
+// Helpers inside: face(), hip(), hipRoof(), machiya(), addBlossom(), hill(). Origin: Yasuke
+// ======================= Yasuke short: Sengoku Japan sets (Kyoto street, audience hall, harbour + black ship, temple) =======================
+import { planks as _planks, jit } from "./paint";
+const shade = (col: string, k: number) => "#" + new THREE.Color(col).multiplyScalar(k).getHexString();
+import type { SetCtx as JCtx, SetHooks as JHooks } from "./sets";
+
+// ---- painted textures ----
+const jEarth = () => ctex("jEarth", 512, 512, (g, r) => {
+  g.fillStyle = "#cdb48c"; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 900; i++) { g.fillStyle = r() < 0.5 ? "rgba(150,120,85,0.35)" : "rgba(235,220,190,0.35)"; g.beginPath(); g.arc(r() * 512, r() * 512, 1 + r() * 3, 0, 6.3); g.fill(); }
+  g.strokeStyle = "rgba(140,110,80,0.25)"; g.lineWidth = 6;
+  for (const x of [150, 362]) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 8, 512); g.stroke(); }
+});
+const jGravel = () => ctex("jGravel", 512, 512, (g, r) => {
+  g.fillStyle = "#bdb7ab"; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 1600; i++) { g.fillStyle = r() < 0.5 ? "rgba(120,115,110,0.4)" : "rgba(240,236,228,0.5)"; g.beginPath(); g.arc(r() * 512, r() * 512, 1 + r() * 2.5, 0, 6.3); g.fill(); }
+  g.strokeStyle = "rgba(150,145,135,0.5)"; g.lineWidth = 2; // raked lines
+  for (let y = 16; y < 512; y += 32) { g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= 512; x += 32) g.lineTo(x, y + Math.sin(x / 40) * 3); g.stroke(); }
+});
+/** ground floor street face: wooden lattice (koshi) with a door gap, 512 x 256 (one house front ~6 m x 3 m) */
+const jLattice = (col: string) => ctex("jLattice" + col, 1024, 512, (g, r) => {
+  g.fillStyle = shade(col, 0.55); g.fillRect(0, 0, 1024, 512);
+  for (let x = 0; x < 1024; x += 14) { g.fillStyle = jit(r, col, 0.06); g.fillRect(x, 40, 8, 472); }
+  g.fillStyle = shade(col, 0.8); g.fillRect(0, 26, 1024, 22); g.fillRect(0, 470, 1024, 42);
+  g.fillStyle = shade(col, 0.4); g.fillRect(380, 48, 230, 422); // dark door opening
+  g.fillStyle = "#2a2028"; for (const x of [0, 1010]) g.fillRect(x, 0, 14, 512);
+});
+const jUpper = () => ctex("jUpper", 1024, 384, (g, r) => {
+  g.fillStyle = "#ece2cc"; g.fillRect(0, 0, 1024, 384);
+  for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(190,170,140,${0.05 + r() * 0.08})`; g.beginPath(); g.arc(r() * 1024, r() * 384, 8 + r() * 30, 0, 6.3); g.fill(); }
+  g.fillStyle = "#4a3326"; g.fillRect(0, 0, 1024, 18); g.fillRect(0, 366, 1024, 18);
+  for (const x of [0, 1006]) g.fillRect(x, 0, 18, 384);
+  g.fillStyle = "#5a4030"; g.fillRect(300, 110, 424, 150); // mushiko slatted window
+  g.fillStyle = "#ece2cc"; for (let x = 318; x < 712; x += 30) g.fillRect(x, 124, 12, 122);
+});
+const jPlaster = () => ctex("jPlaster", 256, 256, (g, r) => {
+  g.fillStyle = "#e6dbc4"; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 80; i++) { g.fillStyle = `rgba(190,170,140,${0.05 + r() * 0.08})`; g.beginPath(); g.arc(r() * 256, r() * 256, 6 + r() * 16, 0, 6.3); g.fill(); }
+});
+const jNoren = () => ctex("jNoren", 256, 256, (g) => {
+  g.fillStyle = "#26386a"; g.fillRect(0, 0, 256, 256);
+  g.fillStyle = "#1a2650"; for (const x of [84, 170]) g.fillRect(x, 60, 4, 196);
+  g.strokeStyle = "#f4f1ea"; g.lineWidth = 12; g.beginPath(); g.arc(128, 110, 40, 0, 6.3); g.stroke();
+  g.beginPath(); g.moveTo(128, 76); g.lineTo(128, 144); g.stroke();
+});
+const jWall = () => ctex("jWall", 512, 256, (g, r) => { // tsuiji earth wall with the five white lines
+  g.fillStyle = "#d8b884"; g.fillRect(0, 0, 512, 256);
+  for (let i = 0; i < 200; i++) { g.fillStyle = `rgba(160,120,70,${0.05 + r() * 0.1})`; g.beginPath(); g.arc(r() * 512, r() * 256, 4 + r() * 14, 0, 6.3); g.fill(); }
+  g.fillStyle = "#f4efe2"; for (let i = 0; i < 5; i++) g.fillRect(0, 40 + i * 22, 512, 7);
+  g.fillStyle = "#7a6248"; g.fillRect(0, 236, 512, 20);
+});
+const jGold = () => ctex("jGold", 2048, 512, (g, r) => { // six-panel gold screen with pines and clouds
+  const gr = g.createLinearGradient(0, 0, 0, 512); gr.addColorStop(0, "#e8c25a"); gr.addColorStop(1, "#c99a38");
+  g.fillStyle = gr; g.fillRect(0, 0, 2048, 512);
+  for (let i = 0; i < 60; i++) { g.fillStyle = `rgba(255,240,180,${0.15 + r() * 0.2})`; g.fillRect(r() * 2048, r() * 512, 40 + r() * 60, 40 + r() * 60); }
+  g.fillStyle = "#3f6a4a"; g.strokeStyle = "#4a3326"; g.lineWidth = 22;
+  for (const [x0, s] of [[300, 1], [1500, -1]] as const) {
+    g.beginPath(); g.moveTo(x0, 512); g.bezierCurveTo(x0 + 60 * s, 380, x0 - 40 * s, 260, x0 + 120 * s, 160); g.stroke();
+    for (let k = 0; k < 6; k++) { const bx = x0 + s * (60 + k * 90), by = 140 + (k % 3) * 70; g.beginPath(); g.ellipse(bx, by, 110, 34, 0, 0, 6.3); g.fill(); }
+  }
+  g.fillStyle = "rgba(255,248,220,0.7)"; for (const [x, y] of [[900, 120], [1180, 300], [700, 380]]) { g.beginPath(); g.ellipse(x, y, 200, 26, 0, 0, 6.3); g.fill(); }
+  g.fillStyle = "rgba(90,60,30,0.6)"; for (let x = 341; x < 2048; x += 341) g.fillRect(x - 2, 0, 4, 512);
+  g.fillStyle = "#2a1d18"; g.fillRect(0, 0, 2048, 10); g.fillRect(0, 502, 2048, 10);
+});
+const jShoji = () => ctex("jShoji", 512, 512, (g) => {
+  g.fillStyle = "#f6f1e4"; g.fillRect(0, 0, 512, 512);
+  g.fillStyle = "#b08a5e"; for (let x = 0; x <= 512; x += 64) g.fillRect(x - 3, 0, 6, 512); for (let y = 0; y <= 512; y += 85) g.fillRect(0, y - 3, 512, 6);
+  g.fillStyle = "#5a4030"; g.fillRect(0, 0, 14, 512); g.fillRect(498, 0, 14, 512); g.fillRect(0, 440, 512, 72);
+});
+const jTatami = () => ctex("jTatami", 256, 512, (g, r) => {
+  g.fillStyle = "#cfc488"; g.fillRect(0, 0, 256, 512);
+  for (let y = 0; y < 512; y += 4) { g.fillStyle = `rgba(150,140,80,${0.15 + r() * 0.15})`; g.fillRect(0, y, 256, 1.5); }
+  g.fillStyle = "#2f4436"; g.fillRect(0, 0, 18, 512); g.fillRect(238, 0, 18, 512);
+});
+const jWood = (key: string, col: string) => ctex("jWood" + key, 256, 256, (g, r) => {
+  g.fillStyle = col; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 40; i++) { g.strokeStyle = `rgba(20,10,10,${0.08 + r() * 0.12})`; g.lineWidth = 1 + r() * 2; const y = r() * 256; g.beginPath(); g.moveTo(0, y); g.bezierCurveTo(80, y + 6, 170, y - 6, 256, y + r() * 6); g.stroke(); }
+});
+const jTemple = () => ctex("jTemple", 1024, 512, (g) => { // temple front: vermilion-brown posts, white panels, doors
+  g.fillStyle = "#efe6d2"; g.fillRect(0, 0, 1024, 512);
+  g.fillStyle = "#7a3226"; for (let x = 0; x <= 1024; x += 128) g.fillRect(x - 12, 0, 24, 512);
+  g.fillRect(0, 0, 1024, 40); g.fillRect(0, 150, 1024, 18);
+  g.fillStyle = "#4a2a22"; for (let x = 140; x < 900; x += 256) g.fillRect(x, 180, 104, 332);
+  g.fillStyle = "#6a3a2a"; for (let x = 140; x < 900; x += 256) for (let y = 200; y < 500; y += 40) g.fillRect(x + 6, y, 92, 4);
+});
+const jSail = (cross: boolean) => ctex("jSail" + cross, 512, 512, (g, r) => {
+  g.fillStyle = "#efe3c2"; g.fillRect(0, 0, 512, 512);
+  for (let x = 0; x < 512; x += 64) { g.fillStyle = "rgba(160,130,90,0.25)"; g.fillRect(x, 0, 3, 512); }
+  for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(170,140,100,${r() * 0.12})`; g.fillRect(r() * 512, r() * 512, 40, 40); }
+  if (cross) { // Order of Christ cross: red with a white inner cross
+    g.fillStyle = "#b8302e"; g.fillRect(206, 110, 100, 300); g.fillRect(106, 210, 300, 100);
+    g.fillStyle = "#efe3c2"; g.fillRect(246, 140, 20, 240); g.fillRect(136, 250, 240, 20);
+  }
+});
+const jNobori = () => ctex("jNobori", 256, 768, (g) => { // white banner, blue bellflower crest
+  g.fillStyle = "#f2efe6"; g.fillRect(0, 0, 256, 768);
+  g.fillStyle = "#2f4f8a";
+  for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5; g.beginPath(); g.ellipse(128 + Math.cos(a) * 44, 170 + Math.sin(a) * 44, 36, 30, a, 0, 6.3); g.fill(); }
+  g.fillStyle = "#f2efe6"; g.beginPath(); g.arc(128, 170, 16, 0, 6.3); g.fill();
+  g.fillStyle = "#2f4f8a"; g.fillRect(0, 0, 256, 26); g.fillRect(0, 742, 256, 26);
+});
+
+// ---- geometry helpers ----
+const DS = THREE.DoubleSide;
+const jm = (key: string, p: () => THREE.MeshLambertMaterialParameters) => lam("j_" + key, () => ({ side: DS, ...p() }));
+/** quad a-b-c-d oriented so its normal points along `want` */
+const face = (a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, d: THREE.Vector3, want: THREE.Vector3, u = 1, v = 1) => {
+  const n = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(d, a));
+  return n.dot(want) >= 0 ? quad(a, b, c, d, u, v) : quad(b, a, d, c, u, v);
+};
+/** hipped roof / eave skirt: square frustum from a CylinderGeometry with 4 sides, flat normals, scaled to a rectangle */
+const hip = (cx: number, y0: number, cz: number, hx: number, hz: number, h: number, top = 0.3) => {
+  const g = new THREE.CylinderGeometry(top, 1, h, 4, 1, true).rotateY(Math.PI / 4).toNonIndexed();
+  g.scale(hx * Math.SQRT2, 1, hz * Math.SQRT2); g.translate(cx, y0 + h / 2, cz); g.computeVertexNormals();
+  return g;
+};
+/** hipped roof with a ridge along x: eave rectangle (hx, hz) at y0, ridge of half-length rl at y0 + h; flat faces */
+const hipRoof = (b: Batch, m: THREE.Material, cx: number, y0: number, cz: number, hx: number, hz: number, h: number, rl: number) => {
+  const y1 = y0 + h, R0 = V(cx - rl, y1, cz), R1 = V(cx + rl, y1, cz);
+  const A = V(cx - hx, y0, cz + hz), B = V(cx + hx, y0, cz + hz), C = V(cx + hx, y0, cz - hz), D = V(cx - hx, y0, cz - hz);
+  b.add(face(A, B, R1, R0, V(0, 1, 1), hx / 2, 1.5), m);
+  b.add(face(C, D, R0, R1, V(0, 1, -1), hx / 2, 1.5), m);
+  const t1 = tri(B, C, R1), t2 = tri(D, A, R0);
+  b.add(t1, m); b.add(t2, m);
+};
+const blossomMat = () => jm("blossom", () => ({ color: "#f3b6c8" }));
+/** cherry tree in bloom: trunk + pink lobes */
+const addBlossom = (b: Batch, x: number, y: number, z: number, h: number, seed: number) => {
+  if (inTheWay(x - 0.4 * h, x + 0.4 * h, y, y + h, z - 0.4 * h, z + 0.4 * h, true)) return;
+  const r = rng(seed), lobe = lobeGeo(0);
+  b.add(trunkGeo(), barkMat(), new THREE.Matrix4().compose(V(x, y, z), new THREE.Quaternion(), V(0.05 * h, 0.55 * h, 0.05 * h)));
+  for (let i = 0; i < 7; i++) {
+    const a = r() * 6.3, d = i ? 0.22 * h : 0, rad = (0.16 + r() * 0.08) * h;
+    b.add(lobe, blossomMat(), new THREE.Matrix4().compose(V(x + Math.cos(a) * d, y + 0.62 * h + (r() - 0.4) * 0.15 * h, z + Math.sin(a) * d), new THREE.Quaternion(), V(rad, rad * 0.8, rad)));
+  }
+};
+const hill = (b: Batch, x: number, z: number, sx: number, sy: number, sz: number, col: string) =>
+  b.add(new THREE.SphereGeometry(1, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2).scale(sx, sy, sz).translate(x, -0.5, z), jm("hill" + col, () => ({ color: col })));
+
+/** a Kyoto townhouse (machiya) with its street face on x = xs, facing the street (side +1 = right row, faces -x) */
+const machiya = (b: Batch, gb: Batch, xs: number, side: number, z0: number, z1: number, seed: number) => {
+  const r = rng(seed), dep = 7, h1 = 3.1, h2 = 5.2, ridge = 6.7 + r() * 0.4, xb = xs + side * dep;
+  const lo = Math.min(xs, xb), hi = Math.max(xs, xb);
+  if (inTheWay(lo, hi, 0, ridge, z0, z1)) return;
+  const want = V(-side, 0, 0), len = z1 - z0, cols = ["#5b3b28", "#7a3a2a", "#4a3a30", "#6a4a32"];
+  b.add(boxGeo(V(lo, 0, z0), V(hi, h2, z1)), jm("plaster", () => ({ map: rep(jPlaster(), 2, 2) })));
+  const fx = xs - side * 0.03;
+  b.add(face(V(fx, 0, z0), V(fx, 0, z1), V(fx, h1, z1), V(fx, h1, z0), want), jm("lattice" + (seed % 4), () => ({ map: jLattice(cols[seed % 4]) })));
+  b.add(face(V(fx, h1, z0), V(fx, h1, z1), V(fx, h2, z1), V(fx, h2, z0), want), jm("upper", () => ({ map: jUpper() })));
+  const roofM = jm("roofTile", () => ({ map: rep(roofHD("#4c5262"), 3, 3) }));
+  // lean-to eave over the ground floor
+  const e = xs - side * 0.95;
+  b.add(face(V(xs, 3.55, z0 - 0.1), V(xs, 3.55, z1 + 0.1), V(e, 3.05, z1 + 0.1), V(e, 3.05, z0 - 0.1), V(-side * 0.4, 1, 0), len / 3, 1), roofM);
+  // main gable roof, ridge along z
+  const xr = xs + side * dep / 2, ef = xs - side * 0.5, eb = xb + side * 0.5;
+  b.add(face(V(ef, h2 - 0.1, z0 - 0.15), V(ef, h2 - 0.1, z1 + 0.15), V(xr, ridge, z1 + 0.15), V(xr, ridge, z0 - 0.15), V(-side * 0.5, 1, 0), len / 3, 1.5), roofM);
+  b.add(face(V(eb, h2 - 0.1, z0 - 0.15), V(eb, h2 - 0.1, z1 + 0.15), V(xr, ridge, z1 + 0.15), V(xr, ridge, z0 - 0.15), V(side * 0.5, 1, 0), len / 3, 1.5), roofM);
+  for (const zz of [z0 - 0.01, z1 + 0.01]) b.add(tri(V(xs, h2, zz), V(xb, h2, zz), V(xr, ridge - 0.05, zz)), jm("plaster", () => ({ map: rep(jPlaster(), 2, 2) })));
+  b.add(boxGeo(V(xr - 0.18, ridge - 0.1, z0 - 0.15), V(xr + 0.18, ridge + 0.22, z1 + 0.15)), jm("ridge", () => ({ color: "#3a3e4a" })));
+  // noren at the door, a red paper lantern under the eave
+  const zc = z0 + len * 0.47, nx = xs - side * 0.06;
+  if (r() < 0.7) b.add(face(V(nx, 1.7, zc - 0.8), V(nx, 1.7, zc + 0.8), V(nx, 2.75, zc + 0.8), V(nx, 2.75, zc - 0.8), want), jm("noren", () => ({ map: jNoren() })));
+  if (r() < 0.6) {
+    const lx = xs - side * 0.55, lz = z0 + len * (r() < 0.5 ? 0.18 : 0.82);
+    b.add(new THREE.CylinderGeometry(0.2, 0.2, 0.5, 12).translate(lx, 2.55, lz), jm("lantern", () => ({ color: "#d0402e" })));
+    gb.add(new THREE.CylinderGeometry(0.205, 0.205, 0.36, 12).translate(lx, 2.55, lz), GLOW_FIRE);
+  }
+};
+
+// ---------------- Kyoto street + Jesuit mission gate (origin) ----------------
+export const buildKyoto = (c: JCtx) => {
+  const b = new Batch(), gb = new Batch(), Z = STORY.GATE_Z;
+  b.add(flatQuad(-400, 400, -500, 500, 160, 200, 0), jm("earth", () => ({ map: rep(jEarth(), 1, 1) })));
+  // two rows of townhouses from the gate to the far end of the street
+  for (const side of [-1, 1]) {
+    let z = Z + 0.01, k = side > 0 ? 0 : 7;
+    while (z < 95) { const len = 6 + ((k * 37) % 5) * 0.8; machiya(b, gb, side * 4.6, side, z, z + len, 101 + k * 13 + (side > 0 ? 0 : 500)); z += len; k++; }
+  }
+  // compound wall across the street with the roofed gate
+  const wallM = jm("tsuiji", () => ({ map: rep(jWall(), 1, 1) })), capM = jm("wallCap", () => ({ color: "#4a4e5a" }));
+  for (const [x0, x1] of [[-11.6, -1.75], [1.75, 11.6]]) {
+    b.add(boxGeo(V(x0, 0, Z - 0.5), V(x1, 3.0, Z), 3), wallM);
+    b.add(hip((x0 + x1) / 2, 3.0, Z - 0.25, (x1 - x0) / 2 + 0.1, 0.55, 0.5, 0.45), capM);
+  }
+  for (const [x0, x1, za, zb] of [[-4.6, -4.1, Z - 22, Z], [4.1, 4.6, Z - 22, Z], [-4.6, 4.6, Z - 22.5, Z - 22]]) b.add(boxGeo(V(x0, 0, za), V(x1, 3.0, zb), 3), wallM);
+  const postM = jm("post", () => ({ map: jWood("post", "#4a3020") }));
+  for (const s of [-1, 1]) b.add(boxGeo(V(s * 1.75 - 0.18, 0, Z - 0.4), V(s * 1.75 + 0.18, 3.7, Z + 0.05)), postM);
+  b.add(boxGeo(V(-2.1, 3.3, Z - 0.4), V(2.1, 3.7, Z + 0.05)), postM);
+  hipRoof(b, jm("roofTile", () => ({ map: rep(roofHD("#4c5262"), 3, 3) })), 0, 3.7, Z - 0.2, 2.9, 1.4, 1.1, 1.9);
+  b.add(boxGeo(V(-2.0, 4.72, Z - 0.35), V(2.0, 4.98, Z - 0.05)), jm("ridge", () => ({ color: "#3a3e4a" })));
+  // the mission house (Nanban-ji): a three-storey Japanese building with a small cross on top
+  { const cm = jm("cross", () => ({ color: "#2a2028" }));
+    b.add(boxGeo(V(-0.06, 4.95, Z - 0.26), V(0.06, 5.9, Z - 0.14)), cm); b.add(boxGeo(V(-0.32, 5.48, Z - 0.26), V(0.32, 5.6, Z - 0.14)), cm); }
+  const NZ = Z - 12, roofM = jm("roofTile", () => ({ map: rep(roofHD("#4c5262"), 3, 3) }));
+  const storeys: [number, number, number, number][] = [[5, 4.2, 0, 3.4], [4, 3.4, 4.0, 3.0], [3, 2.6, 7.6, 2.8]];
+  for (const [hx, hz, y0, h] of storeys) {
+    b.add(boxGeo(V(-hx, y0, NZ - hz), V(hx, y0 + h, NZ + hz), 2.5), jm("plaster", () => ({ map: rep(jPlaster(), 2, 2) })));
+    b.add(face(V(-hx, y0, NZ + hz + 0.02), V(hx, y0, NZ + hz + 0.02), V(hx, y0 + h, NZ + hz + 0.02), V(-hx, y0 + h, NZ + hz + 0.02), V(0, 0, 1), Math.round(hx / 2), 1), jm("temple", () => ({ map: jTemple() })));
+    b.add(hip(0, y0 + h - 0.15, NZ, hx + 1.3, hz + 1.3, 0.75, 0.62), roofM);
+  }
+  b.add(hip(0, 10.4, NZ, 4.0, 3.4, 1.9, 0.12), roofM);
+  const crossM = jm("cross", () => ({ color: "#2a2028" }));
+  b.add(boxGeo(V(-0.07, 12.2, NZ - 0.07), V(0.07, 13.8, NZ + 0.07)), crossM);
+  b.add(boxGeo(V(-0.45, 13.15, NZ - 0.07), V(0.45, 13.3, NZ + 0.07)), crossM);
+  // blossoms in the courtyard, pines behind the compound, the eastern hills
+  for (const [x, z, h] of [[-3.0, Z - 4, 4.6], [3.1, Z - 5.5, 4.2], [-2.6, Z - 18, 5], [2.8, Z - 19, 4.8]]) addBlossom(b, x, 0, z, h, 7 + x * 10 + z);
+  for (let i = 0; i < 10; i++) prop(b, c.kit, "tree_fat", -14 + i * 3.2, 0, Z - 26 - (i % 3) * 3, 7 + (i % 4));
+  hill(b, -60, -260, 150, 60, 80, "#6f9a62"); hill(b, 120, -300, 180, 75, 90, "#7aa36a"); hill(b, 0, -420, 260, 110, 100, "#88aab0");
+  hill(b, -40, 260, 160, 55, 80, "#7aa36a"); hill(b, 140, 330, 200, 80, 90, "#88aab0");
+  b.build(c.root); gb.build(c.glow, false);
+  // the two door leaves of the gate (they fall inward when the crowd pushes)
+  const door = new THREE.Group(), dm = jm("door", () => ({ map: jWood("door", "#8a5a36") })), studM = jm("stud", () => ({ color: "#2a2630" }));
+  for (const s of [-1, 1]) {
+    door.add(new THREE.Mesh(boxGeo(V(s > 0 ? 0.02 : -1.72, 0, -0.14), V(s > 0 ? 1.72 : -0.02, 3.2, 0)), dm));
+    for (const y of [0.6, 1.6, 2.6]) door.add(new THREE.Mesh(boxGeo(V(s > 0 ? 0.08 : -1.66, y - 0.06, 0), V(s > 0 ? 1.66 : -0.08, y + 0.06, 0.04)), studM));
+  }
+  door.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+  door.position.set(0, 0, Z);
+  c.root.add(door);
+  return { door };
+};
+export const kyotoSet = (c: JCtx): JHooks => {
+  const { door } = buildKyoto(c);
+  return {
+    clouds: true,
+    update: (u) => {
+      if (!u.active) return;
+      const d = STORY.DOOR[u.id] ?? (u.id >= 6 ? "down" : "up");
+      const k = d === "down" ? 1 : d === "up" ? 0 : STORY.clamp01((u.t - d) / 0.34);
+      door.rotation.x = -1.53 * k * k;
+    },
+  };
+};
+
+// ---------------- Nobunaga's audience hall (x = HX), open toward +z ----------------
+export const hallSet = (c: JCtx): JHooks => {
+  const b = new Batch(), X = STORY.HX;
+  b.add(flatQuad(X - 7, X + 7, -4.6, 10, 14 / 0.9, 14.6 / 1.8, 0), jm("tatamiF", () => ({ map: rep(jTatami(), 14 / 0.9, 14.6 / 1.8) })));
+  const wood = jm("hallWood", () => ({ map: jWood("hall", "#4a3020") }));
+  b.add(boxGeo(V(X - 7, 0, -8), V(X + 7, 0.35, -4.6)), wood);
+  b.add(flatQuad(X - 7, X + 7, -8, -4.6, 14 / 0.9, 3.4 / 1.8, 0.352), jm("tatamiD", () => ({ map: rep(jTatami(), 14 / 0.9, 3.4 / 1.8) })));
+  // gold folding screen across the back, zigzag panels
+  const gold = jm("gold", () => ({ map: jGold() }));
+  for (let i = 0; i < 6; i++) {
+    const x0 = X - 6.6 + i * 2.2, x1 = x0 + 2.2, z0 = -7.55 + (i % 2) * 0.3, z1 = -7.55 + ((i + 1) % 2) * 0.3;
+    const g = quad(V(x0, 0.35, z0), V(x1, 0.35, z1), V(x1, 2.95, z1), V(x0, 2.95, z0), 1, 1);
+    const uv = g.attributes.uv as THREE.BufferAttribute;
+    for (let k = 0; k < uv.count; k++) uv.setX(k, (i + uv.getX(k)) / 6);
+    b.add(g, gold);
+  }
+  b.add(face(V(X - 7, 0, -7.95), V(X + 7, 0, -7.95), V(X + 7, 4.2, -7.95), V(X - 7, 4.2, -7.95), V(0, 0, 1), 4, 1.5), jm("plaster", () => ({ map: rep(jPlaster(), 2, 2) })));
+  for (const y of [3.0, 4.1]) b.add(boxGeo(V(X - 7, y, -7.95), V(X + 7, y + 0.22, -7.7)), wood);
+  // shoji side walls with posts and a beam, a dark coffered ceiling (none of it casts: the room stays lit)
+  b.build(c.root);
+  const shoji = jm("shoji", () => ({ map: rep(jShoji(), 1, 1) }));
+  for (const s of [-1, 1]) {
+    const x = X + s * 7;
+    b.add(face(V(x, 0, -8), V(x, 0, 10), V(x, 3.1, 10), V(x, 3.1, -8), V(-s, 0, 0), 18 / 1.8, 1), shoji);
+    b.add(face(V(x, 3.1, -8), V(x, 3.1, 10), V(x, 4.2, 10), V(x, 4.2, -8), V(-s, 0, 0), 4, 1), jm("plaster", () => ({ map: rep(jPlaster(), 2, 2) })));
+    b.add(boxGeo(V(x - s * 0.02 - 0.12, 3.0, -8), V(x - s * 0.02 + 0.12, 3.25, 10)), wood);
+    for (let z = -7.8; z <= 10; z += 3.6) b.add(boxGeo(V(x - 0.16, 0, z - 0.16), V(x + 0.16, 4.2, z + 0.16)), wood);
+  }
+  b.add(flatQuad(X - 7.2, X + 7.2, -8.2, 10.2, 8, 10, 4.2), jm("ceiling", () => ({ map: rep(jWood("ceil", "#5a3c26"), 1, 1) })));
+  for (let x = X - 6; x <= X + 6; x += 2) b.add(boxGeo(V(x - 0.07, 4.05, -8), V(x + 0.07, 4.2, 10)), wood);
+  // armrest, lacquer box, sword stand on the dais; paper lamps in the corners
+  const lacq = jm("lacquer", () => ({ color: "#2a1a1e" })), red = jm("lacqRed", () => ({ color: "#9a2a26" }));
+  b.add(boxGeo(V(X + 0.9, 0.35, -6.4), V(X + 1.5, 0.62, -6.0)), red);
+  b.add(boxGeo(V(X - 1.6, 0.35, -6.6), V(X - 1.1, 0.95, -6.45)), lacq);
+  for (const s of [-1, 1]) {
+    const lx = X + s * 5.6;
+    b.add(boxGeo(V(lx - 0.25, 0.35, -6.5), V(lx + 0.25, 1.35, -6.0)), jm("andon", () => ({ color: "#f3e7c6" })));
+    b.add(boxGeo(V(lx - 0.28, 1.35, -6.53), V(lx + 0.28, 1.42, -5.97)), lacq);
+  }
+  b.build(c.root, false);
+  return { indoor: true };
+};
+
+// ---------------- Kyushu harbour 1579 and the black ship (x = SX) ----------------
+export const harbourSet = (c: JCtx): JHooks => {
+  const b = new Batch(), X = STORY.SX;
+  c.water(flatQuad(X - 1100, X + 1100, -1100, 1100, 1, 1, 0));
+  // shore and hills
+  b.add(boxGeo(V(X - 400, -2, 9), V(X + 400, 0.55, 400)), jm("sand", () => ({ color: "#d9c49a" })));
+  hill(b, X - 70, -90, 50, 30, 80, "#5f8a52"); hill(b, X + 110, -170, 90, 42, 70, "#6a955a");
+  hill(b, X - 20, -560, 380, 120, 120, "#7f9fa8"); hill(b, X + 300, -460, 200, 90, 90, "#88aab0");
+  for (let i = 0; i < 9; i++) prop(b, c.kit, "tree_fat", X - 62 + (i % 3) * 7, 18 + (i % 2) * 6, -60 + i * 6, 8 + (i % 3));
+  // jetty
+  const deckM = jm("deck", () => ({ map: rep(jWood("deck", "#9a7c5c"), 1, 14) })), postM = jm("jpost", () => ({ color: "#5a3e2a" }));
+  b.add(boxGeo(V(X - 1.6, 1.05, -42), V(X + 1.6, 1.35, 9.5)), deckM);
+  for (let z = -41; z <= 9; z += 3.4) for (const s of [-1, 1]) b.add(new THREE.CylinderGeometry(0.16, 0.18, 3.6, 8).translate(X + s * 1.5, -0.6, z), postM);
+  for (const [x, z, yaw] of [[-5.5, -12, 0.2], [-7.5, -22, -0.3], [4.0, -6, 0.1], [-6, 2, 0.5]]) addCanoe(b, X + x, z, yaw, 5);
+  // the black ship (kurofune): tarred hull, high stern castle, three masts, sails with the red cross
+  const SZ = -40, SXc = X + 9.4, hullM = jm("hull", () => ({ color: "#2b2629" })), band = jm("hullBand", () => ({ color: "#b8823e" }));
+  b.add(new THREE.SphereGeometry(1, 32, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).scale(4.6, 5, 16).translate(SXc, 2.6, SZ), hullM);
+  b.add(new THREE.CylinderGeometry(1, 1, 1.7, 32, 1, true).scale(4.6, 1, 16).translate(SXc, 3.45, SZ), hullM);
+  b.add(new THREE.CylinderGeometry(1, 1, 0.3, 32, 1, true).scale(4.66, 1, 16.06).translate(SXc, 2.75, SZ), band);
+  b.add(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2).scale(4.5, 1, 15.8).translate(SXc, 3.7, SZ), jm("shipDeck", () => ({ color: "#8a6440" })));
+  b.add(boxGeo(V(SXc - 3.4, 3.7, SZ + 9), V(SXc + 3.4, 8.4, SZ + 14.2)), hullM);
+  b.add(boxGeo(V(SXc - 3.45, 7.2, SZ + 8.95), V(SXc + 3.45, 7.5, SZ + 14.25)), band);
+  b.add(boxGeo(V(SXc - 2.4, 3.7, SZ - 14.5), V(SXc + 2.4, 6.4, SZ - 10)), hullM);
+  b.add(boxGeo(V(SXc - 0.25, 4.6, SZ - 21), V(SXc + 0.25, 5.0, SZ - 14)), postM); // bowsprit
+  const mastM = jm("mast", () => ({ color: "#6a4a30" }));
+  const masts: [number, number, number, boolean][] = [[SZ - 8, 22, 9, true], [SZ, 28, 11, true], [SZ + 10, 18, 6, false]];
+  for (const [mz, top, sw, cross] of masts) {
+    b.add(new THREE.CylinderGeometry(0.22, 0.36, top - 3.7, 10).translate(SXc, 3.7 + (top - 3.7) / 2, mz), mastM);
+    const sails: [number, number][] = [[top * 0.52, sw], [top * 0.82, sw * 0.7]];
+    for (const [cy, w] of sails) {
+      const h = w * 0.72, g = new THREE.PlaneGeometry(w, h, 10, 6), pos = g.attributes.position as THREE.BufferAttribute;
+      for (let k = 0; k < pos.count; k++) { const x = pos.getX(k) / (w / 2), y = pos.getY(k) / (h / 2); pos.setZ(k, -1.1 * (1 - x * x) * (0.6 + 0.4 * (1 - y * y))); }
+      g.computeVertexNormals(); g.translate(SXc, cy, mz - 0.4);
+      b.add(g, jm("sail" + (cross && cy < top * 0.6), () => ({ map: jSail(cross && cy < top * 0.6) })));
+      b.add(new THREE.CylinderGeometry(0.1, 0.1, w + 1, 6).rotateZ(Math.PI / 2).translate(SXc, cy + h / 2, mz - 0.2), mastM);
+    }
+    b.add(tri(V(SXc, top, mz), V(SXc, top - 1.2, mz), V(SXc + 3.2, top - 0.6, mz)), jm("pennant", () => ({ color: "#c0353a" })));
+  }
+  const rope = jm("rope", () => ({ color: "#3a3030" }));
+  for (const [mz, top] of [[SZ, 28], [SZ - 8, 22]]) for (const s of [-1, 1]) {
+    const a = V(SXc, top - 1, mz), d = V(SXc + s * 4.4, 4.2, mz + 2.5), len = a.distanceTo(d);
+    const g = new THREE.CylinderGeometry(0.04, 0.04, len, 4); g.translate(0, len / 2, 0);
+    const q = new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), d.clone().sub(a).normalize());
+    b.add(g, rope, new THREE.Matrix4().compose(a, q, V(1, 1, 1)));
+  }
+  // gangplank from the jetty end up to the ship's rail
+  { const a = V(X + 1.5, 1.35, -38), d = V(SXc - 4.5, 4.2, -38), len = a.distanceTo(d), g = boxGeo(V(-0.4, -0.06, 0), V(0.4, 0.06, len));
+    const q = new THREE.Quaternion().setFromUnitVectors(V(0, 0, 1), d.clone().sub(a).normalize()); b.add(g, deckM, new THREE.Matrix4().compose(a, q, V(1, 1, 1))); }
+  b.build(c.root);
+  return { clouds: true, fog: (_l, near, far) => [Math.max(near, 60), far * 2.0] };
+};
+
+// ---------------- Honno-ji at night (z = TZ) ----------------
+export const templeSet = (c: JCtx): JHooks => {
+  const b = new Batch(), gb = new Batch(), Z = STORY.TZ, HZ = Z - 21;
+  b.add(flatQuad(-80, 80, Z - 80, Z + 60, 30, 28, 0), jm("gravel", () => ({ map: rep(jGravel(), 1, 1) })));
+  const stoneM = jm("tstone", () => ({ map: rep(stoneHD(), 4, 1) })), roofM = jm("roofTile", () => ({ map: rep(roofHD("#4c5262"), 3, 3) }));
+  b.add(boxGeo(V(-11.5, 0, HZ - 7.5), V(11.5, 1.0, HZ + 7.5), 2), stoneM);
+  b.add(boxGeo(V(-3, 0, HZ + 7.5), V(3, 0.5, HZ + 9)), stoneM);
+  b.add(boxGeo(V(-3, 0.5, HZ + 7.5), V(3, 1.0, HZ + 8.2)), stoneM);
+  b.add(boxGeo(V(-9.6, 1, HZ - 5.6), V(9.6, 6.6, HZ + 5.6)), jm("plaster", () => ({ map: rep(jPlaster(), 2, 2) })));
+  b.add(face(V(-9.6, 1, HZ + 5.62), V(9.6, 1, HZ + 5.62), V(9.6, 6.6, HZ + 5.62), V(-9.6, 6.6, HZ + 5.62), V(0, 0, 1), 2, 1), jm("temple", () => ({ map: jTemple() })));
+  b.add(hip(0, 6.4, HZ, 13, 8.2, 1.4, 0.82), roofM);
+  hipRoof(b, roofM, 0, 7.8, HZ, 11.2, 7.0, 3.6, 5.2);
+  b.add(boxGeo(V(-5.4, 11.25, HZ - 0.45), V(5.4, 11.85, HZ + 0.45)), jm("ridge", () => ({ color: "#3a3e4a" })));
+  for (const s of [-1, 1]) b.add(boxGeo(V(s * 5.4 - 0.4, 11.3, HZ - 0.35), V(s * 5.4 + 0.4, 12.6, HZ + 0.35)), jm("shibi", () => ({ color: "#b8923e" })));
+  // fire inside: the doors and windows glow
+  for (const x of [-6.2, -2.0, 2.0, 6.2]) gb.add(face(V(x - 0.9, 1.3, HZ + 5.66), V(x + 0.9, 1.3, HZ + 5.66), V(x + 0.9, 4.6, HZ + 5.66), V(x - 0.9, 4.6, HZ + 5.66), V(0, 0, 1)), GLOW_FIRE);
+  // earth walls around the precinct with a gate gap in front
+  const wallM = jm("tsuiji", () => ({ map: rep(jWall(), 1, 1) })), capM = jm("wallCap", () => ({ color: "#4a4e5a" }));
+  const walls: [number, number, number, number][] = [[-22, -21.5, Z - 40, Z + 26], [21.5, 22, Z - 40, Z + 26], [-22, 22, Z - 40.5, Z - 40], [-22, -3.5, Z + 26, Z + 26.5], [3.5, 22, Z + 26, Z + 26.5]];
+  for (const [x0, x1, z0, z1] of walls) {
+    b.add(boxGeo(V(x0, 0, z0), V(x1, 2.8, z1), 3), wallM);
+    b.add(hip((x0 + x1) / 2, 2.8, (z0 + z1) / 2, (x1 - x0) / 2 + 0.4, (z1 - z0) / 2 + 0.4, 0.5, 0.5), capM);
+  }
+  for (let i = 0; i < 8; i++) prop(b, c.kit, "tree_fat", (i % 2 ? 1 : -1) * (15 + (i % 3) * 2), 0, Z - 34 + i * 7, 8 + (i % 3));
+  // Akechi banners (white nobori with a blue bellflower) and torch posts behind his line
+  const nob = jm("nobori", () => ({ map: jNobori() })), pole = jm("pole", () => ({ color: "#2a2028" }));
+  for (const x of [-6.5, -4.2, -2.1, 2.1, 4.3, 6.6]) {
+    const z = Z + 13.5 + Math.abs(x) * 0.15;
+    if (inTheWay(x - 0.1, x + 0.8, 0, 5.2, z - 0.1, z + 0.1)) continue;
+    b.add(new THREE.CylinderGeometry(0.05, 0.05, 5.2, 6).translate(x, 2.6, z), pole);
+    b.add(face(V(x + 0.05, 2.0, z), V(x + 0.75, 2.0, z), V(x + 0.75, 4.9, z), V(x + 0.05, 4.9, z), V(0, 0, -1)), nob);
+  }
+  for (const x of [-1.0, 1.0, -3.2, 3.2]) {
+    b.add(new THREE.CylinderGeometry(0.05, 0.05, 2.3, 6).translate(x, 1.15, Z + 12.5), pole);
+    b.add(new THREE.CylinderGeometry(0.11, 0.07, 0.22, 8).translate(x, 2.32, Z + 12.5), pole);
+    gb.add(new THREE.SphereGeometry(0.12, 10, 8).translate(x, 2.42, Z + 12.5), GLOW_FIRE);
+  }
+  hill(b, 0, Z - 300, 260, 90, 80, "#2f3a4a");
+  b.build(c.root); gb.build(c.glow, false);
+  return { clouds: true };
+};

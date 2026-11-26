@@ -1,0 +1,149 @@
+// LIBRARY PART: Aztec lake city (island, canals, twin-shrine temple, causeway, chinampas) + Spanish ships
+// Append to the END of the short's build.ts (below "library parts appended below"), then register in sets.ts:
+//   SETS.lake = (c) => { buildLake(c.root, c.kit, STORY.LX, STORY.ISLE, c.rays, c.glow, { table: [x, y, z] }); c.water(flatQuad(STORY.LX - 1100, STORY.LX + 1100, -1100, 1100, 1, 1, 0)); return { clouds: true, streak: true }; };
+//   ships: const ships = buildShips(STORY.LX); c.root.add(ships); toggle ships.visible in a hooks.update
+// Needs: copy library/sets/lake.ts next to build.ts; story.ts exports LX, ISLE.
+// Origin: La Llorona
+import * as LAKE from "./lake";
+const adobeTex = (c: number) => ctex("adobe" + c, 256, 256, (g, r) => {
+  const cols = ["#f3ead8", "#efe2c4", "#e8d4ae", "#f1e4d0", "#dfc79c"];
+  g.fillStyle = cols[c % 5]; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 26; i++) { g.fillStyle = r() < 0.5 ? "rgba(255,255,255,0.08)" : "rgba(130,95,60,0.07)"; g.beginPath(); g.arc(r() * 256, r() * 256, 10 + r() * 30, 0, 7); g.fill(); }
+  g.fillStyle = ["#c0453a", "#2f7f7a", "#c0453a", "#d9a441", "#2f7f7a"][c % 5]; g.fillRect(0, 18, 256, 14); // painted band under the roof line
+  g.fillStyle = "rgba(60,40,30,0.25)"; g.fillRect(0, 230, 256, 26);                                       // plinth
+  g.fillStyle = "#3b2a26"; g.fillRect(104, 128, 48, 102);                                                // doorway
+  g.strokeStyle = "rgba(60,40,30,0.6)"; g.lineWidth = 3; g.strokeRect(104, 128, 48, 102);
+});
+const lakeStone = () => lam("lakeStone", () => ({ map: stoneHD("lakeStoneHD", ["#d8c8a8", "#cdbb98", "#e0d2b4", "#c4b08c"], "#9c8a6c") }));
+const plazaM = () => lam("plaza", () => ({ map: rep(stoneHD("plazaHD", ["#cfae80", "#c6a374", "#d6b88c", "#bf9b6c"], "#9a7c56"), 6, 6) }));
+
+/** the lake city at x = LX: island, canals, temple, houses, causeway, chinampas, canoes, torches (fire -> glow group) */
+export const buildLake = (root: THREE.Object3D, kit: Kit, LX: number, ISLE: number, rays: Ray[], glow: THREE.Object3D, extra: { table: [number, number, number] }) => {
+  const b = new Batch(), gb = new Batch(), r = rng(31);
+  sight = rays;
+  const X = (x: number) => LX + x;
+  const { lakeHouses, chinampas, CANALS, ISLAND, TEMPLE } = LAKE;
+  // island ground in three strips between the canals (canal water shows through the 8 m gaps)
+  const strips: [number, number][] = [[ISLAND.x0, CANALS[0] - 4], [CANALS[0] + 4, CANALS[1] - 4], [CANALS[1] + 4, ISLAND.x1]];
+  for (const [x0, x1] of strips) {
+    b.add(boxGeo(V(X(x0), -1.2, ISLAND.z0), V(X(x1), ISLE, ISLAND.z1), 3), lakeStone());
+    b.add(quad(V(X(x0), ISLE + 0.01, ISLAND.z1), V(X(x1), ISLE + 0.01, ISLAND.z1), V(X(x1), ISLE + 0.01, ISLAND.z0), V(X(x0), ISLE + 0.01, ISLAND.z0), (x1 - x0) / 4, (ISLAND.z1 - ISLAND.z0) / 4), plazaM());
+  }
+  // temple: four stepped tiers, a double stair on the front (+z), twin shrines on top
+  const tierM = lam("templeHD", () => ({ map: stoneHD("templeHD", ["#ece2cc", "#e2d6bc", "#f0e8d6", "#d9ccb0"], "#a89a80") }));
+  const stairM = lam("stairs", () => ({ color: "#c96a4a" }));
+  let y = ISLE;
+  TEMPLE.tiers.forEach((s, i) => {
+    const h = TEMPLE.th, hs = s / 2;
+    b.add(boxGeo(V(X(TEMPLE.x - hs), y, TEMPLE.z - hs), V(X(TEMPLE.x + hs), y + h, TEMPLE.z + hs), 3), tierM);
+    b.add(boxGeo(V(X(TEMPLE.x - hs - 0.15), y + h - 0.35, TEMPLE.z - hs - 0.15), V(X(TEMPLE.x + hs + 0.15), y + h, TEMPLE.z + hs + 0.15)), lam("templeBand", () => ({ color: "#c0453a" })));
+    const next = TEMPLE.tiers[i + 1] ?? s, front = TEMPLE.z + hs, n = 9;
+    for (let k = 0; k < n; k++) { // stair flight from this tier's foot to its top, 7 m wide
+      const zf = front + 2.2 - (2.2 * (k + 1)) / n, yt = y + (h * (k + 1)) / n;
+      b.add(boxGeo(V(X(-3.5), y, zf), V(X(3.5), yt, zf + 2.2 / n + 0.01)), stairM);
+    }
+    for (const sx of [-1, 1]) b.add(boxGeo(V(X(sx * 3.5 - 0.35), y, front - 0.1), V(X(sx * 3.5 + 0.35), y + h + 0.3, front + 2.25)), tierM); // balustrades
+    void next;
+    y += h;
+  });
+  const topZ = TEMPLE.z - 4;
+  for (const [sx, col, roof] of [[-1, "#c0453a", "#7a2a26"], [1, "#3f7fb8", "#244a72"]] as const) {
+    const cx = X(TEMPLE.x + sx * 3.6);
+    b.add(boxGeo(V(cx - 2.4, y, topZ - 2.6), V(cx + 2.4, y + 3.6, topZ + 2.6), 2), lam("shrine" + col, () => ({ map: shrineTex(col) })));
+    b.add(new THREE.ConeGeometry(3.0, 2.6, 4).rotateY(Math.PI / 4).translate(cx, y + 3.6 + 1.3, topZ), lam("shrineRoof" + roof, () => ({ color: roof })));
+    // braziers on the top platform
+    b.add(new THREE.CylinderGeometry(0.45, 0.3, 0.7, 10).translate(cx + sx * 1.0, y + 0.35, TEMPLE.z + 5.6), lam("brazier", () => ({ color: "#5a4a40" })));
+    gb.add(new THREE.ConeGeometry(0.42, 1.1, 8).translate(cx + sx * 1.0, y + 1.25, TEMPLE.z + 5.6), GLOW_FIRE);
+  }
+  // the priest's table (codex rests on it)
+  b.add(boxGeo(V(extra.table[0] - 0.65, extra.table[1], extra.table[2] - 0.38), V(extra.table[0] + 0.65, extra.table[1] + 0.55, extra.table[2] + 0.38)), tierM);
+  // houses: whitewashed, flat roofs with a low parapet
+  for (const h of lakeHouses()) {
+    const x0 = X(h.x - h.w / 2), x1 = X(h.x + h.w / 2), z0 = h.z - h.d / 2, z1 = h.z + h.d / 2;
+    if (inTheWay(x0, x1, ISLE, ISLE + h.h + 0.4, z0, z1)) continue;
+    const wm = lam("adobe" + h.c, () => ({ map: adobeTex(h.c) }));
+    b.add(boxGeo(V(x0, ISLE, z0), V(x1, ISLE + h.h, z1)), wm);
+    const pm = lam("parapet" + (h.c % 5), () => ({ color: ["#f3ead8", "#efe2c4", "#e8d4ae", "#f1e4d0", "#dfc79c"][h.c % 5] }));
+    for (const [a0, a1, c0, c1] of [[x0, x1, z0, z0 + 0.25], [x0, x1, z1 - 0.25, z1], [x0, x0 + 0.25, z0, z1], [x1 - 0.25, x1, z0, z1]])
+      b.add(boxGeo(V(a0, ISLE + h.h, c0), V(a1, ISLE + h.h + 0.4, c1)), pm);
+    if (r() < 0.5) gb.add(new THREE.PlaneGeometry(0.46, 1.0).translate(X(h.x), ISLE + 0.55, z1 + 0.02), GLOW_WIN); // lit doorway
+  }
+  // causeway with torch posts
+  b.add(boxGeo(V(X(-3.5), -1.2, ISLAND.z1 - 1), V(X(3.5), ISLE, 900), 3), lakeStone());
+  b.add(quad(V(X(-3.5), ISLE + 0.01, 900), V(X(3.5), ISLE + 0.01, 900), V(X(3.5), ISLE + 0.01, ISLAND.z1 - 1), V(X(-3.5), ISLE + 0.01, ISLAND.z1 - 1), 2, 200), plazaM());
+  const post = lam("torchPost", () => ({ color: "#5a3b2a" }));
+  const torch = (x: number, yb: number, z: number, h = 2.2) => {
+    if (inTheWay(x - 0.2, x + 0.2, yb, yb + h + 0.8, z - 0.2, z + 0.2, true)) return;
+    b.add(new THREE.CylinderGeometry(0.06, 0.08, h, 6).translate(x, yb + h / 2, z), post);
+    b.add(new THREE.CylinderGeometry(0.2, 0.12, 0.25, 8).translate(x, yb + h + 0.1, z), lam("brazier", () => ({ color: "#5a4a40" })));
+    gb.add(new THREE.ConeGeometry(0.17, 0.55, 7).translate(x, yb + h + 0.48, z), GLOW_FIRE);
+  };
+  for (let z = ISLAND.z1 + 6; z < 480; z += 24) for (const sx of [-1, 1]) torch(X(sx * 3.1), ISLE, z + (sx > 0 ? 12 : 0));
+  for (const [x, z] of [[-14, -2], [14, -2], [-14, -38], [14, -38], [-30, 10], [30, 10], [-6, 12], [6, 12]]) torch(X(x), ISLE, z, 2.6);
+  // chinampas: raised garden plots with crop rows and willow-like trees
+  const soil = lam("chinampa", () => ({ map: rep(chinampaTex(), 1, 3) }));
+  for (const [x0, x1, z0, z1] of chinampas()) {
+    b.add(boxGeo(V(X(x0), -0.6, z0), V(X(x1), 0.4, z1), 2), soil);
+    for (let z = z0 + 3; z < z1; z += 7 + r() * 4) prop(b, kit, r() < 0.5 ? "tree-high-round" : "tree", X(x0 + 0.6), 0.4, z, 6 + r() * 2.5, r() * 6);
+  }
+  // canoes around the island and in the canals
+  for (let i = 0; i < 16; i++) {
+    const a = r() * Math.PI * 2, d = 95 + r() * 40, x = Math.cos(a) * d, z = Math.sin(a) * d * 0.9 - 10;
+    if (Math.abs(x) < 8 && z > 60) continue;
+    addCanoe(b, X(x), z, r() * 6.28);
+  }
+  for (const cx of CANALS) for (let z = -80; z < 60; z += 26 + r() * 10) addCanoe(b, X(cx + (r() - 0.5) * 3), z, (r() - 0.5) * 0.3);
+  // mountains around the valley + two snow-capped volcanoes (seen far over the lake on clear days)
+  const hill = new THREE.SphereGeometry(1, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2);
+  const hm = [lam("mtA", () => ({ color: "#7d9a5a" })), lam("mtB", () => ({ color: "#8a9c62" })), lam("mtC", () => ({ color: "#9a8f6a" }))];
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2 + 0.2, d = 460 + (i % 3) * 60;
+    b.add(hill, hm[i % 3], new THREE.Matrix4().compose(V(X(Math.cos(a) * d), -2, Math.sin(a) * d), new THREE.Quaternion(), V(150 + (i % 4) * 30, 40 + (i % 3) * 14, 120)));
+  }
+  for (const [x, z, h, rr] of [[-140, -470, 150, 120], [60, -520, 125, 110]] as const) {
+    b.add(new THREE.ConeGeometry(rr, h, 24, 1, true).translate(X(x), h / 2 - 2, z), lam("volcano", () => ({ color: "#6f7fb0" })));
+    b.add(new THREE.ConeGeometry(rr * 0.3, h * 0.3, 24, 1, true).translate(X(x), h - 2 - h * 0.15 + 0.4, z), lam("snow", () => ({ color: "#f4f6fb" })));
+  }
+  b.build(root);
+  gb.build(glow, false);
+  sight = [];
+};
+const shrineTex = (col: string) => ctex("shrine" + col, 256, 256, (g) => {
+  g.fillStyle = "#f1e6cf"; g.fillRect(0, 0, 256, 256);
+  g.fillStyle = col; for (let y = 0; y < 120; y += 30) g.fillRect(0, y, 256, 16);
+  g.fillStyle = "#2a1d18"; g.fillRect(88, 136, 80, 120);
+  g.strokeStyle = col; g.lineWidth = 10; g.strokeRect(80, 128, 96, 128);
+});
+const chinampaTex = () => ctex("chinampaTex", 128, 256, (g) => {
+  g.fillStyle = "#6c5a3c"; g.fillRect(0, 0, 128, 256);
+  for (let x = 10; x < 128; x += 22) { g.fillStyle = "#6aa84a"; g.fillRect(x, 0, 12, 256); g.fillStyle = "rgba(255,255,200,0.15)"; g.fillRect(x, 0, 4, 256); }
+});
+
+/** Spanish brigantines (shot 7): hull, mast, square sail with a red saltire; returned as their own group */
+export const buildShips = (LX: number) => {
+  const grp = new THREE.Group(), b = new Batch();
+  const hull = lam("shipHull", () => ({ color: "#6e4a30", side: THREE.DoubleSide })), mast = lam("mast", () => ({ color: "#5a3b2a" }));
+  const sail = lam("sail", () => ({ map: sailTex(), side: THREE.DoubleSide }));
+  for (const [x, z, yaw] of [[30, 170, 0.45], [52, 196, 0.35], [18, 214, 0.5], [70, 228, 0.3]] as const) {
+    const m = new THREE.Matrix4().makeRotationY(Math.PI + yaw).setPosition(LX + x, 0.6, z);
+    b.add(canoeGeo(13, 3.6, 1.8), hull, m);
+    b.add(boxGeo(V(-1.75, -0.05, -6.3), V(1.75, 0.35, 6.3)), lam("deck", () => ({ color: "#9a6a44" })), m);
+    b.add(boxGeo(V(-1.6, 0.35, 3.4), V(1.6, 1.6, 6.0)), hull, m); // stern castle
+    b.add(new THREE.CylinderGeometry(0.12, 0.16, 11, 8).translate(0, 5.8, 0.4), mast, m);
+    const s = new THREE.PlaneGeometry(5.4, 5.0, 8, 4), p = s.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < p.count; i++) p.setZ(i, 0.6 * (1 - (p.getX(i) / 2.7) ** 2) * (1 - 0.3 * (p.getY(i) / 2.5) ** 2));
+    s.computeVertexNormals();
+    b.add(s.translate(0, 6.8, 0.2), sail, m);
+    b.add(new THREE.CylinderGeometry(0.08, 0.08, 6.0, 6).rotateZ(Math.PI / 2).translate(0, 9.3, 0.2), mast, m);
+  }
+  b.build(grp);
+  return grp;
+};
+const sailTex = () => ctex("sailBurgundy", 256, 256, (g) => {
+  g.fillStyle = "#f2ead6"; g.fillRect(0, 0, 256, 256);
+  g.strokeStyle = "#b8302e"; g.lineWidth = 26; g.lineCap = "round";
+  g.beginPath(); g.moveTo(54, 54); g.lineTo(202, 202); g.moveTo(202, 54); g.lineTo(54, 202); g.stroke();
+  g.strokeStyle = "rgba(120,100,80,0.25)"; g.lineWidth = 3; for (let x = 32; x < 256; x += 32) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 256); g.stroke(); }
+});
+
+/** a small tiled bathroom open toward +z (the lens), origin at the floor centre; no shadows */

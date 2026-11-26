@@ -1,0 +1,90 @@
+// LIBRARY PART: 3D hero props for a 1920s-40s lab: phong() (two-tone Phong, cached), petriDish(r, seed) -> { g, set(mould,
+// ring, germs) } (glass, amber agar, glossy colonies, fuzzy mould, clear zone), dishStack(n, r, seed) -> { g, lean(deg) },
+// flask(scale) -> { g, set(label, liquidHex, dust) } (Erlenmeyer, liquid, PENICILLIN label, dust). Append to build.ts
+// (needs rng, ctex, twoTone imports there). Pose them per shot from a set's `update` hook (Penicillin 2 sets.ts labProps). Origin: Penicillin 2 2026-11-21
+// ---------------- 3D hero props (Penicillin 2, 2026-11-21: the references model the story's key objects in 3D) -------
+// Glass, agar, colonies and mould as real geometry with a two-tone Phong (specular highlights), so close-ups read as
+// objects with depth instead of a stretched flat drawing. Each builder returns its group + a setter for its state.
+const phongs = new Map<string, THREE.MeshPhongMaterial>();
+export const phong = (key: string, p: THREE.MeshPhongMaterialParameters) => {
+  let m = phongs.get(key);
+  if (!m) { m = twoTone(new THREE.MeshPhongMaterial(p)); phongs.set(key, m); }
+  return m;
+};
+const GLASS = () => phong("propGlass", { color: "#dff1f4", specular: "#ffffff", shininess: 140, transparent: true, opacity: 0.42, side: THREE.DoubleSide });
+const lathe = (pts: [number, number][], seg = 48) => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg);
+export type Dish = { g: THREE.Group; set: (mould: number, ring: number, germs?: number) => void };
+/** a glass petri dish (radius r, open top, y up) with amber agar, orange germ colonies and a fuzzy blue-green mould.
+ *  set(mould 0..1 = grown size, ring 0..1 = clear zone spreading round the mould, germs 0..1 = colonies shown). */
+export const petriDish = (r = 0.15, seed = 1): Dish => {
+  const g = new THREE.Group(), R = rng(seed * 97 + 3);
+  const h = 0.045, t = 0.005;
+  g.add(new THREE.Mesh(lathe([[0, 0], [r, 0], [r + 0.003, 0.004], [r + 0.003, h], [r - t, h], [r - t, t], [0, t]]), GLASS()));
+  const agar = new THREE.Mesh(new THREE.CylinderGeometry(r - t - 0.002, r - t - 0.002, 0.016, 56), phong("propAgar", { color: "#efc76a", emissive: "#6e5420", specular: "#fff2c8", shininess: 70 }));
+  agar.position.y = t + 0.008; g.add(agar);
+  const top = t + 0.0165, M: [number, number] = [-0.035 * (r / 0.15), 0.02 * (r / 0.15)]; // mould centre (off-centre)
+  const clear = new THREE.Mesh(new THREE.CircleGeometry(1, 48), phong("propClear", { color: "#f7ecc9", emissive: "#6f6650", specular: "#ffffff", shininess: 90 }));
+  clear.rotation.x = -Math.PI / 2; clear.position.set(M[0], top + 0.0004, M[1]); g.add(clear);
+  // colonies: little domes of three oranges, spread over the agar
+  const cols: { m: THREE.Mesh; d: number }[] = [], cg = new THREE.SphereGeometry(1, 14, 8);
+  for (let i = 0; i < 46; i++) {
+    const a = R() * Math.PI * 2, rr = Math.sqrt(R()) * (r - 0.02), x = Math.cos(a) * rr, z = Math.sin(a) * rr, s = 0.006 + R() * 0.008;
+    const m = new THREE.Mesh(cg, phong("propCol" + (i % 3), { color: ["#e2620a", "#c9500c", "#f08a18"][i % 3], emissive: ["#5a2204", "#4c1c04", "#5e3006"][i % 3], specular: "#ffd9a0", shininess: 50 }));
+    m.scale.set(s, s * 0.55, s); m.position.set(x, top, z); g.add(m);
+    cols.push({ m, d: Math.hypot(x - M[0], z - M[1]) });
+  }
+  // the mould: a fuzzy cluster of blue-green puffs with a pale velvety rim
+  const mould = new THREE.Group(); mould.position.set(M[0], top, M[1]); g.add(mould);
+  for (let i = 0; i < 34; i++) {
+    const a = R() * Math.PI * 2, rr = Math.sqrt(R()) * 0.034, s = 0.009 + R() * 0.011 * (1 - rr / 0.05);
+    const pale = rr > 0.026;
+    const m = new THREE.Mesh(cg, phong(pale ? "propMouldRim" : "propMould" + (i % 2), { color: pale ? "#e9f2e6" : ["#2a9c86", "#4fbea3"][i % 2], emissive: pale ? "#4a524a" : ["#0c3a30", "#1a4a3e"][i % 2], specular: "#c8fff0", shininess: 25 }));
+    m.scale.set(s, s * 0.8, s); m.position.set(Math.cos(a) * rr, s * 0.3, Math.sin(a) * rr); mould.add(m);
+  }
+  const sc = r / 0.15; mould.scale.setScalar(sc);
+  const set = (mo: number, ring: number, germs = 1) => {
+    mould.visible = mo > 0.01; mould.scale.setScalar(sc * Math.max(0.01, mo));
+    const rz = (0.05 + 0.055 * ring) * sc; // clear zone radius
+    clear.visible = ring > 0.01 && mo > 0.01; clear.scale.setScalar(rz);
+    for (const c of cols) c.m.visible = germs > 0 && !(ring > 0.01 && c.d < rz * (0.85 + 0.15 * ring));
+  };
+  set(0, 0);
+  return { g, set };
+};
+/** a leaning stack of n dishes (germs only), base at y 0; lean() sways it (deg at the top, the stack bends) */
+export const dishStack = (n: number, r = 0.15, seed = 1) => {
+  const g = new THREE.Group(), dishes: THREE.Group[] = [];
+  for (let i = 0; i < n; i++) {
+    const d = petriDish(r * (1 - 0.03 * (i % 3)), seed * 13 + i); d.set(0, 0, 1);
+    const k = new THREE.Group(); k.add(d.g); d.g.position.set(Math.sin(i * 1.7) * 0.012, 0, Math.cos(i * 2.3) * 0.01);
+    k.position.y = i * 0.05; g.add(k); dishes.push(k);
+  }
+  const lean = (deg: number) => dishes.forEach((k, i) => { k.rotation.z = (deg * Math.PI) / 180 * (i / n) * 0.35; k.position.x = (deg / 90) * 0.05 * (i / n) ** 2; });
+  return { g, lean };
+};
+const labelTex = () => ctex("propLabel", 512, 160, (c) => {
+  c.fillStyle = "#fbf6e8"; c.fillRect(0, 0, 512, 160); c.strokeStyle = "#241726"; c.lineWidth = 10; c.strokeRect(5, 5, 502, 150);
+  c.fillStyle = "#241726"; c.font = "bold 78px Arial"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("PENICILLIN", 256, 84);
+});
+export type Flask = { g: THREE.Group; set: (label: number, liquid: string, dust: number) => void };
+/** a glass Erlenmeyer flask (height ~0.36 m, base y 0) with liquid, a paper label and dust */
+export const flask = (s = 1): Flask => {
+  const g = new THREE.Group();
+  const P: [number, number][] = [[0, 0], [0.1, 0], [0.105, 0.012], [0.03, 0.24], [0.026, 0.25], [0.026, 0.33], [0.032, 0.345], [0.026, 0.35]];
+  const glass = new THREE.Mesh(lathe(P), phong("propFlaskGlass", { color: "#e6f4f6", specular: "#ffffff", shininess: 150, transparent: true, opacity: 0.38, side: THREE.DoubleSide }));
+  g.add(glass);
+  const liqM = twoTone(new THREE.MeshPhongMaterial({ color: "#e7b93a", specular: "#fff0b0", shininess: 90 }));
+  const liq = new THREE.Mesh(lathe([[0, 0.006], [0.094, 0.006], [0.098, 0.014], [0.062, 0.12], [0, 0.12]]), liqM); g.add(liq);
+  const lab = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.047), new THREE.MeshBasicMaterial({ map: labelTex(), transparent: true }));
+  lab.position.set(0, 0.155, 0.068); lab.rotation.x = -0.32; g.add(lab);
+  const dustM = new THREE.MeshBasicMaterial({ color: "#b9b2a2", transparent: true, opacity: 0, depthWrite: false });
+  const dust = new THREE.Mesh(lathe(P.map(([x, y]) => [x * 1.02 + 0.001, y] as [number, number])), dustM); g.add(dust);
+  g.scale.setScalar(s);
+  const set = (label: number, liquid: string, d: number) => {
+    lab.visible = label > 0.01; lab.scale.setScalar(Math.max(0.01, label));
+    liqM.color.set(liquid); dustM.opacity = 0.55 * d; dust.visible = d > 0.01;
+  };
+  set(1, "#e7b93a", 0);
+  return { g, set };
+};
+

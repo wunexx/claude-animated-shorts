@@ -1,0 +1,176 @@
+// LIBRARY PART: La Llorona cast - Mexica fisherman / guard / priest outfits, aztec + colonial townsfolk (towny),
+// MUM_O, the weeping-woman ghost (see-through gown, veil, hollow eyes: draw with Fx `see: true`), sob arcs (fxWail),
+// sound pulse, amate codex page, bathtub. Append to the END of toon.ts. Pair with library/cast/llorona_helpers.ts.txt.
+// Origin: La Llorona
+// ======================= La Llorona cast =======================
+const BLACK_HAIR = "#1b1720";
+const AZ_SKIN = ["#b97a4e", "#a86d45", "#c48a5c", "#9c6440"];
+/** Mexica fisherman: white cotton cloak, black hair */
+export const FISHER: Outfit = { jacket: "#efe4c8", pants: "#7a5034", boots: "#9a6a3e", hat: "hair", hair: BLACK_HAIR, skin: AZ_SKIN[0] };
+/** causeway guard: quilted cotton armour, red sash and headband, spear */
+export const GUARD_O: Outfit = { jacket: "#e6d3a2", pants: "#6b4a33", boots: "#8a5a34", hat: "hairband", hair: BLACK_HAIR, cap: "#c0353a",
+  sash: "#c0353a", skin: AZ_SKIN[1], spear: true, build: "stout" };
+/** temple priest: black robe, long black hair */
+export const PRIEST_O: Outfit = { jacket: "#e9dcc4", pants: "#5a2a2a", boots: "#3a2a22", hat: "hairband", hair: "#141219", cap: "#2f7f7a", dress: "#8a2f2f", skin: AZ_SKIN[3] };
+/** townsfolk of the lake city: men in tilmas, women in huipils */
+export const aztec = (v: number): Outfit => {
+  const cloaks = ["#efe4c8", "#d9a441", "#e9dcc4", "#c96a4a", "#5f9a8c", "#e4d2a8"];
+  const skin = AZ_SKIN[v % 4];
+  return v % 2
+    ? { jacket: ["#f1e6cf", "#e8d6b0", "#f3eadb"][v % 3], dress: ["#c0453a", "#2f7f7a", "#d9a441"][v % 3], pants: "#6b4a33", boots: "#8a5a34", hat: "longhair", hair: BLACK_HAIR, skin }
+    : { jacket: cloaks[v % 6], pants: "#6b4a33", boots: "#8a5a34", hat: v % 4 === 2 ? "hairband" : "hair", hair: BLACK_HAIR, cap: "#2f7f7a", skin };
+};
+/** colonial-town family */
+/** colonial-town neighbours: men in sombreros and ponchos, women with braids and rebozos */
+export const towny = (v: number): Outfit => {
+  const skin = ["#d39a6a", "#c48a5c", "#e0ae80", "#b97a4e"][v % 4];
+  return v % 2
+    ? { jacket: ["#7a2a3a", "#2f5f6a", "#5a3b6a"][v % 3], dress: ["#d9a441", "#c0453a", "#2f7f7a"][v % 3], pants: "#3b3f52", boots: "#5a3b2a", hat: "braids", hair: "#1b1720", cap: "#e2453c", skin }
+    : { jacket: ["#c0453a", "#d9a441", "#2f7f7a"][v % 3], pants: "#3b3f52", boots: "#5a3b2a", hat: "sombrero", cap: ["#c9a25a", "#e3cf9a", "#8a5a34"][v % 3], sash: "#f1e6cf", skin, moustache: v % 4 === 0 ? "#2a201a" : undefined };
+};
+export const MUM_O: Outfit = { jacket: "#c2405a", dress: "#3a6fb0", sash: "#f2c230", pants: "#3b3f52", boots: "#5a3b2a", hat: "braids", hair: "#2a1d18", cap: "#f2c230", skin: "#d39a6a" };
+export type GhostOpts = { expr?: Expr; arms?: "reach" | "face" | "rub" | "down"; phase?: number; blink?: number; light?: number };
+const GOWN = "rgba(214,228,252,0.74)", GOWN_SH = "rgba(120,146,205,0.62)", GSKIN = "#d6e1f4", VEIL = "rgba(236,242,255,0.5)";
+/** La Llorona on the 600 x 1000 design card (no feet: the gown ends in drifting wisps around y 900-980) */
+export const ghost = (p: Pen, o: GhostOpts) => {
+  const { expr = "weep", arms = "down", phase = 0, blink = 0, light = DEF_LIGHT } = o;
+  const H = headBlob(4, 112, 0), W = 2 * H.a, HH = 2 * H.b, u = W / 100, thick = thickAngle(light), ow = 3.6 * u;
+  const hc = 300, chin = hc + H.b, cx = 300, two = Math.PI * 2;
+  // veil behind, long black hair over it
+  // torn veil (see-through), its hem ragged
+  const veil: P2[] = [[cx - 1.25 * H.a, hc - 0.8 * H.b], [cx + 1.25 * H.a, hc - 0.8 * H.b], [cx + 1.6 * H.a, hc + 2.2 * H.b]];
+  for (let i = 0; i <= 12; i++) { const t = i / 12; veil.push([cx + 1.8 * H.a * (1 - 2 * t), hc + (3.6 + (i % 2 ? -0.5 : 0.15) + 0.2 * Math.sin(two * phase + i)) * H.b]); }
+  veil.push([cx - 1.6 * H.a, hc + 2.2 * H.b]);
+  p.poly(veil, VEIL, 0);
+  p.poly(veil, null, ow * 0.45);
+  // long wet hair to the waist, strands in darker lines
+  const hair: P2[] = [[cx - 0.95 * H.a, hc - 0.7 * H.b], [cx + 0.95 * H.a, hc - 0.7 * H.b], [cx + 1.18 * H.a, hc + 0.6 * H.b], [cx + 1.15 * H.a, hc + 3.6 * H.b],
+    [cx + 0.85 * H.a, hc + 4.3 * H.b], [cx + 0.4 * H.a, hc + 3.9 * H.b], [cx - 0.4 * H.a, hc + 3.9 * H.b], [cx - 0.85 * H.a, hc + 4.3 * H.b], [cx - 1.15 * H.a, hc + 3.6 * H.b], [cx - 1.18 * H.a, hc + 0.6 * H.b]];
+  p.shadedFill(curveClose(hair), BLACK_HAIR, "#07060c", light, H.a, 0.35);
+  p.inkRing(curveClose(hair), ow * 0.7, thick);
+  for (const x of [-0.95, -0.7, 0.7, 0.95]) p.stroke([[cx + x * H.a, hc + 0.8 * H.b], [cx + x * 1.04 * H.a, hc + 2.4 * H.b], [cx + x * 0.92 * H.a, hc + 3.9 * H.b]], 1.2 * u, "#2c2a44");
+  // gown: narrow shoulders, widening, a hem of drifting wisps
+  const sh = chin + 0.12 * HH, hemY = 905, gw = 1.2 * H.a;
+  const hem: P2[] = [];
+  for (let i = 0; i <= 24; i++) {
+    const t = i / 24, x = cx + gw * (1 - 2 * t), w = Math.sin(t * Math.PI * 3 + two * phase) * 22 + Math.sin(t * Math.PI * 7 - two * phase) * 8;
+    hem.push([x, hemY + w + 40 * Math.sin(t * Math.PI) ** 2]);
+  }
+  const gown: P2[] = [[cx - 0.62 * H.a, sh], [cx + 0.62 * H.a, sh], [cx + 0.95 * H.a, sh + 0.6 * HH], [cx + gw * 0.98, hemY - 140], ...hem, [cx - gw * 0.98, hemY - 140], [cx - 0.95 * H.a, sh + 0.6 * HH]];
+  const gp = curveClose(gown);
+  p.gradFill(gp, GOWN, GOWN_SH, light, 0.25);
+  p.clip(gp, () => { for (const x of [-0.45, 0.05, 0.5]) p.stroke([[cx + x * H.a, sh + 0.5 * HH], [cx + x * 1.25 * H.a + 8 * u * Math.sin(two * phase + x * 4), hemY]], 1.6 * u, "#b8c8e8"); });
+  p.poly(gp, null, ow * 0.55);
+  // sleeves + hands
+  const S = (s: number): P2 => [cx + s * 0.7 * H.a, sh + 0.08 * HH];
+  const arm = (a: P2, k: P2, h: P2) => {
+    p.line(curve(a, k, h), "#c9d8f2", 8 * u);
+    const dx = h[0] - k[0], dy = h[1] - k[1], L = Math.hypot(dx, dy) || 1, ang = Math.atan2(dy, dx);
+    for (const f of [-0.5, -0.17, 0.17, 0.5]) { // long thin bony fingers
+      const a2 = ang + f, e: P2 = [h[0] + Math.cos(a2) * 16 * u, h[1] + Math.sin(a2) * 16 * u], m: P2 = [h[0] + Math.cos(a2) * 8 * u, h[1] + Math.sin(a2) * 8 * u + 2 * u];
+      p.stroke([h, m, e], 3.4 * u, INK); p.stroke([h, m, e], 1.8 * u, GSKIN);
+    }
+    p.dot(h[0], h[1], 4.6 * u, INK); p.dot(h[0], h[1], 3.4 * u, GSKIN);
+    void L;
+  };
+  const front = arms === "face" || arms === "rub";
+  if (!front) {
+    for (const s of [-1, 1]) {
+      const sw = Math.sin(two * phase + s) * 6 * u;
+      if (arms === "reach") arm(S(s), [cx + s * 1.35 * H.a, sh + 0.35 * HH], [cx + s * (1.75 * H.a + sw), sh + 0.15 * HH + sw]);
+      else arm(S(s), [cx + s * 1.1 * H.a, sh + 0.55 * HH], [cx + s * 1.05 * H.a, sh + 1.05 * HH + sw]);
+    }
+  }
+  // head
+  const hp = blobPts(cx, hc, H);
+  p.shadedFill(hp, GSKIN, mul(GSKIN, [0.9, 0.92, 0.98]), light, H.a);
+  p.inkRing(hp, ow, thick);
+  // fringe parted in the middle + veil band over the crown
+  const fr: P2[] = [];
+  for (let i = 0; i <= 16; i++) { const a = Math.PI + (i / 16) * Math.PI; fr.push([cx + 1.03 * H.a * Math.cos(a), hc - 0.16 * H.b + 1.0 * H.b * Math.sin(a)]); }
+  fr.push([cx + 0.95 * H.a, hc - 0.05 * H.b], [cx + 0.2 * H.a, hc - 0.55 * H.b], [cx, hc - 0.72 * H.b], [cx - 0.2 * H.a, hc - 0.55 * H.b], [cx - 0.95 * H.a, hc - 0.05 * H.b]);
+  p.shadedFill(fr, BLACK_HAIR, "#0d0b12", light, H.a, 0.35);
+  p.poly(fr, null, ow * 0.8);
+  const vb: P2[] = [];
+  for (let i = 0; i <= 16; i++) { const a = Math.PI * 1.08 + (i / 16) * Math.PI * 0.84; vb.push([cx + 1.12 * H.a * Math.cos(a), hc - 0.05 * H.b + 1.12 * H.b * Math.sin(a)]); }
+  for (let i = 16; i >= 0; i--) { const a = Math.PI * 1.08 + (i / 16) * Math.PI * 0.84; vb.push([cx + 0.98 * H.a * Math.cos(a), hc + 0.04 * H.b + 0.96 * H.b * Math.sin(a)]); }
+  p.poly(vb, VEIL, ow * 0.7);
+  if (expr === "weep" || expr === "wail" || expr === "sad" || expr === "worried") {
+    // hollow eyes: dark sockets with small pale pupils, sorrowful brows, mouth
+    const ey = hc + 0.08 * H.b;
+    for (const s of [-1, 1]) {
+      p.ell(cx + s * 13 * u, ey, 8.5 * u, 10 * u, "#1d2140", 0);
+      p.dot(cx + s * 13 * u, ey + 1.5 * u, 2.2 * u, "#e9f0ff");
+      taper(p, [cx + s * 5 * u, ey - 14 * u], [cx + s * 21 * u, ey - 10 * u], 3.2 * u, 1.6 * u);
+    }
+    mouth(p, expr === "wail" ? "O" : expr === "sad" ? "frown" : "wave", cx, hc + 0.08 * H.b + 22 * u, u);
+  } else faceFront(p, cx, hc + 0.08 * H.b, W, expr, 0, 0, blink, false, GSKIN);
+  if (expr === "weep" || expr === "wail" || expr === "sad") {
+    for (const s of [-1, 1]) { // tear streams down both cheeks
+      const x = cx + s * 13 * u, y0 = hc + 0.08 * H.b + 6 * u;
+      p.poly([[x - 2.6 * u, y0], [x + 2.6 * u, y0], [x + 3.4 * u + s * u, y0 + 26 * u], [x - 1.8 * u + s * u, y0 + 26 * u]], "#9fd4ff", 1.6 * u);
+      p.ell(x + s * 1.2 * u, y0 + 30 * u + 4 * u * Math.sin(two * phase * 2 + s), 3.2 * u, 4.4 * u, "#9fd4ff", 1.6 * u);
+    }
+  }
+  if (front) { // hands at the face (weeping) or rubbed together under the chin (the grin)
+    for (const s of [-1, 1]) {
+      if (arms === "face") arm(S(s), [cx + s * 1.2 * H.a, sh + 0.45 * HH], [cx + s * 0.55 * H.a, hc + 0.55 * H.b]);
+      else arm(S(s), [cx + s * 1.2 * H.a, sh + 0.42 * HH], [cx + s * (0.12 * H.a + 4 * u * Math.sin(two * phase * 3)), sh + 0.35 * HH]);
+    }
+  }
+};
+
+/** sound of the sob: arcs opening to the right on a 400 x 400 canvas; t 0..1 (spread), n arcs, a = strength */
+export const fxWail = (p: Pen, t: number, n = 3, a = 1) => {
+  // arcs centred left of the canvas (x = -60): the card sits beside the head, so the arcs open away from the face
+  for (let k = 0; k < n; k++) {
+    const ph = (t + k / n) % 1, r = 150 + 190 * ph, w = (5 - 2.5 * ph) * a + 2, al = Math.sin(Math.PI * ph) * (0.5 + 0.5 * a); // seamless outward loop
+    p.arc(-60, 200, r, r * 0.95, -33, 33, w + 10, `rgba(150,185,255,${(al * 0.25).toFixed(3)})`);
+    p.arc(-60, 200, r, r * 0.95, -33, 33, w, `rgba(232,240,255,${al.toFixed(3)})`);
+  }
+};
+/** single travelling sound pulse: a fat bright arc on a 300 x 300 canvas */
+export const fxPulse = (p: Pen) => {
+  for (const [r, w, a] of [[118, 9, 0.95], [84, 6, 0.6]] as const) {
+    p.arc(40, 150, r, r * 1.1, -55, 55, w + 16, `rgba(255,214,150,${(a * 0.3).toFixed(2)})`);
+    p.arc(40, 150, r, r * 1.1, -55, 55, w, `rgba(255,244,220,${a})`);
+  }
+};
+/** amate-paper codex page with the eight omens as glyph panels; the sixth (a weeping woman with speech scrolls) is
+ *  ringed in red. Aztec numbers are dots: each panel carries its count of dots. 900 x 500 canvas. */
+export const fxCodex = (p: Pen) => {
+  const g = p.g;
+  p.poly(rrect(10, 10, 890, 490, 18), "#e9d6ac", 10);
+  g.fillStyle = "rgba(120,80,40,0.10)"; for (let i = 0; i < 40; i++) g.fillRect(20 + ((i * 97) % 860), 20 + ((i * 53) % 460), 30, 3);
+  for (const x of [230, 450, 670]) p.stroke([[x, 26], [x, 474]], 4, "rgba(90,60,40,0.5)");
+  for (let k = 0; k < 8; k++) {
+    const col = k % 4, row = k >> 2, x0 = 20 + col * 220, y0 = 22 + row * 232, cx = x0 + 105, cy = y0 + 120;
+    p.poly(rrect(x0 + 12, y0 + 12, x0 + 198, y0 + 220, 14), k === 5 ? "#f3e4bf" : null, 5);
+    for (let d = 0; d <= k; d++) p.dot(x0 + 30 + d * 21, y0 + 34, 8, ["#c0353a", "#2f7f7a"][d % 2]);
+    switch (k) {
+      case 0: p.poly([[cx - 50, cy + 70], [cx - 20, cy - 40], [cx + 20, cy - 40], [cx + 50, cy + 70]], "#d9a441", 5); p.poly([[cx - 20, cy - 40], [cx, cy - 75], [cx + 20, cy - 40]], "#ff8a2a", 5); break;
+      case 1: p.poly(rrect(cx - 50, cy - 20, cx + 50, cy + 70, 6), "#c96a4a", 5); p.poly([[cx - 60, cy - 20], [cx, cy - 70], [cx + 60, cy - 20]], "#ff8a2a", 5); break;
+      case 2: p.poly(rrect(cx - 45, cy - 10, cx + 45, cy + 70, 6), "#e9dcc4", 5); p.stroke([[cx + 30, cy - 80], [cx + 10, cy - 40], [cx + 22, cy - 40], [cx, cy - 5]], 7, "#3f6fb5"); break;
+      case 3: p.ell(cx - 30, cy - 30, 22, 22, "#ffe07a", 5); p.stroke([[cx - 10, cy - 15], [cx + 55, cy + 50]], 9, "#ff8a2a"); break;
+      case 4: for (const dy of [0, 26, 52]) p.arc(cx, cy + dy, 60, 18, 180, 360, 7, "#3f6fb5"); break;
+      case 5: {
+        p.poly([[cx - 34, cy + 80], [cx - 22, cy + 5], [cx + 22, cy + 5], [cx + 34, cy + 80]], "#f3f6ff", 5);
+        p.poly([[cx - 26, cy - 34], [cx + 26, cy - 34], [cx + 30, cy + 20], [cx + 20, cy - 10], [cx - 20, cy - 10], [cx - 30, cy + 20]], "#1b1720", 4);
+        p.ell(cx, cy - 20, 24, 24, "#e9dcc4", 5);
+        p.stroke([[cx - 9, cy - 16], [cx - 9, cy + 8]], 4, "#3f6fb5"); p.stroke([[cx + 9, cy - 16], [cx + 9, cy + 8]], 4, "#3f6fb5");
+        for (const [sx, sy] of [[cx + 40, cy - 34], [cx + 56, cy - 66]]) p.arc(sx, sy, 15, 15, 120, 420, 5, "#2f7f7a");
+        g.strokeStyle = "#c0353a"; g.lineWidth = 8; g.beginPath(); g.ellipse(cx, cy + 10, 92, 100, 0, 0, Math.PI * 2); g.stroke();
+        break;
+      }
+      case 6: p.ell(cx, cy, 34, 30, "#8c7a6a", 5); p.ell(cx, cy - 20, 12, 12, "#1b1720", 4); p.poly([[cx + 30, cy], [cx + 60, cy - 10], [cx + 60, cy + 10]], "#d9a441", 4); break;
+      case 7: p.ell(cx - 22, cy - 20, 18, 18, "#e9dcc4", 5); p.ell(cx + 22, cy - 20, 18, 18, "#e9dcc4", 5); p.poly(rrect(cx - 40, cy, cx + 40, cy + 70, 10), "#c96a4a", 5); break;
+    }
+  }
+};
+/** bathtub, side-on, on a 700 x 300 canvas (claw feet, foam on the rim) */
+export const fxTub = (p: Pen) => {
+  p.poly([[30, 40], [670, 40], [640, 230], [60, 230]], "#f4f6fb", 10);
+  p.poly([[30, 40], [670, 40], [670, 62], [30, 62]], "#dfe6f2", 8);
+  for (const x of [110, 590]) p.poly([[x - 26, 222], [x + 26, 222], [x + 18, 288], [x - 18, 288]], "#d9a441", 7);
+  for (let i = 0; i < 7; i++) p.ell(120 + i * 75, 40 - 10 * (i % 2), 40, 26, "#ffffff", 6);
+};

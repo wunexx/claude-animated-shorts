@@ -1,0 +1,82 @@
+// LIBRARY PART: Sisyphus short effect drawings: fxBoulder (2D boulder with tallies), fxClock (stone time clock showing 9 and 5),
+// fxWings (black wings), fxChains (chains + padlock), fxScythe, fxDrip (sweat drop), fxZap (lightning bolt), fxExit (green EXIT sign).
+// Append to toon.ts. Outfits used (paste into cast.ts if wanted): WORKER, KING (crown + beard), DEATH (hood), ZEUS (laurel + beard),
+// CAMUS, greek(v) townsfolk; see src/videos/sisyphus/cast.ts.
+// Origin: Sisyphus (2026-11-17)
+// ---------------- Sisyphus short: effect drawings ----------------
+/** the boulder on a 600 x 600 canvas: lumpy grey stone, cracks + tally marks that turn with spin (deg), n tallies */
+export const fxBoulder = (p: Pen, spin: number, n = 0) => {
+  const pts: P2[] = [];
+  for (let i = 0; i < 64; i++) { const a = (i / 64) * Math.PI * 2, r = 268 * (1 + 0.035 * Math.sin(a * 3 + 1) + 0.025 * Math.sin(a * 5 + 2)); pts.push([300 + Math.cos(a) * r, 300 + Math.sin(a) * r]); }
+  p.shadedFill(pts, "#9a8f86", "#5a4f5a", -Math.PI * 0.75, 268, 0.5);
+  const R = (q: P2[]) => rotPts(q, rad(spin), 300, 300);
+  p.clip(pts, () => {
+    p.ell(...(R([[210, 190]])[0]), 60, 40, "#aca196", 0, 0, 360, spin);
+    p.ell(...(R([[390, 420]])[0]), 70, 34, "#857a74", 0, 0, 360, spin + 30);
+    p.stroke(R([[120, 330], [190, 350], [230, 410], [300, 430]]), 6, "#4a4048");
+    p.stroke(R([[400, 140], [370, 210], [420, 260]]), 6, "#4a4048");
+    for (let i = 0; i < n; i++) {
+      const g = Math.floor(i / 5), k = i % 5, gx = 170 + (g % 4) * 78, gy = 230 + Math.floor(g / 4) * 90;
+      if (k < 4) p.stroke(R([[gx + k * 13, gy], [gx + k * 13 + 3, gy + 58]]), 7, "#efe6d6");
+      else p.stroke(R([[gx - 8, gy + 44], [gx + 50, gy + 10]]), 7, "#efe6d6");
+    }
+  });
+  p.inkRing(pts, 9, -Math.PI * 0.25);
+};
+/** stone time-clock post on a 400 x 760 canvas: a dial with only 9 and 5 marked, and a slot for the stone card */
+export const fxClock = (p: Pen, hand: number) => {
+  const g = p.g;
+  p.poly([[120, 740], [280, 740], [262, 300], [138, 300]], "#7d7480", 8);
+  p.poly([[100, 760], [300, 760], [300, 720], [100, 720]], "#6a6170", 7);
+  p.ell(200, 200, 150, 150, "#d8cdb6", 9);
+  p.ell(200, 200, 128, 128, "#f3ead6", 4);
+  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2 - Math.PI / 2; p.stroke([[200 + Math.cos(a) * 108, 200 + Math.sin(a) * 108], [200 + Math.cos(a) * 122, 200 + Math.sin(a) * 122]], 6, "#5a4f5a"); }
+  g.fillStyle = "#c0353a"; g.font = "bold 58px Georgia, serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText("9", 200 + Math.cos(Math.PI) * 82, 200); g.fillText("5", 200 + Math.cos(Math.PI / 3) * 0 + 42, 200 + 72);
+  const a = rad(hand) - Math.PI / 2;
+  p.stroke([[200, 200], [200 + Math.cos(a) * 92, 200 + Math.sin(a) * 92]], 10, INK);
+  p.stroke([[200, 200], [200 + Math.cos(a * 0.08 - 1) * 60, 200 + Math.sin(a * 0.08 - 1) * 60]], 13, INK);
+  p.dot(200, 200, 12, INK);
+  p.poly([[160, 420], [240, 420], [240, 470], [160, 470]], "#3a333c", 5);
+  p.poly([[176, 380], [224, 380], [224, 445], [176, 445]], "#efe2c0", 4);
+  p.stroke([[184, 398], [216, 398]], 4, "#8a8fa0"); p.stroke([[184, 414], [210, 414]], 4, "#8a8fa0");
+};
+/** black feathered wings (both) on an 800 x 500 canvas */
+export const fxWings = (p: Pen, flap = 0) => {
+  for (const s of [-1, 1]) {
+    const x0 = 400 + s * 40, up = 30 * flap;
+    const pts: P2[] = [[x0, 260], [x0 + s * 120, 120 - up], [x0 + s * 280, 40 - up], [x0 + s * 370, 70 - up], [x0 + s * 340, 170 - up * 0.5], [x0 + s * 360, 230], [x0 + s * 300, 300], [x0 + s * 320, 360], [x0 + s * 230, 400], [x0 + s * 220, 460], [x0 + s * 120, 420], [x0, 330]];
+    p.poly(pts, "#2a2432", 10);
+    for (let i = 1; i < 4; i++) p.stroke([[x0 + s * 30, 270], [x0 + s * (110 + 70 * i), 120 + 80 * i - up * (1 - i / 4)]], 5, "#4a4256");
+  }
+};
+/** heavy iron chain wrapped round a body, on a 600 x 600 canvas (three loops + a padlock) */
+export const fxChains = (p: Pen) => {
+  for (const [y0, tilt] of [[170, -12], [300, 8], [430, -6]] as const) {
+    for (let i = 0; i < 9; i++) {
+      const x = 70 + i * 58, y = y0 + Math.sin((i / 8) * Math.PI) * 26 + ((x - 300) * Math.tan(rad(tilt)));
+      if (i % 2) p.ell(x, y, 30, 12, null, 0, 0, 360, tilt), p.arc(x, y, 30, 12, 0, 360, 9, "#5f6470"), p.arc(x, y, 30, 12, 200, 340, 3, "#a9b0bc");
+      else p.arc(x, y, 12, 26, 0, 360, 9, "#6d7380");
+    }
+  }
+  p.poly([[262, 330], [338, 330], [338, 410], [262, 410]], "#b88a2e", 6);
+  p.arc(300, 330, 26, 34, 180, 360, 9, "#8d949c");
+  p.dot(300, 365, 8, INK); p.stroke([[300, 365], [300, 390]], 6, INK);
+};
+/** Death's scythe on a 300 x 900 canvas */
+export const fxScythe = (p: Pen) => {
+  p.band([[190, 880], [150, 120]], "#5a4030", 16, 5, "round");
+  p.poly([[150, 110], [30, 80], [-10 + 40, 150], [90, 128], [160, 150]], "#c9cdd6", 6);
+};
+/** a sweat drop on a 64 x 96 canvas */
+export const fxDrip = (p: Pen) => { p.poly([[32, 6], [52, 54], [44, 82], [20, 82], [12, 54]], "#bfe3ff", 4); p.ell(26, 52, 5, 9, "#ffffff", 0); };
+/** big lightning bolt on a 300 x 600 canvas */
+export const fxZap = (p: Pen) => p.poly([[170, 10], [60, 300], [140, 300], [70, 590], [250, 240], [160, 240], [240, 10]], "#fff2a0", 9);
+/** green EXIT sign with an arrow on a 520 x 260 canvas */
+export const fxExit = (p: Pen) => {
+  const g = p.g;
+  p.poly(rrect(14, 14, 506, 246, 24), "#2f9a58", 10);
+  g.fillStyle = "#f4fbf2"; g.font = "bold 120px Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText("EXIT", 300, 134);
+  p.poly([[40, 134], [100, 84], [100, 112], [130, 112], [130, 156], [100, 156], [100, 184]], "#f4fbf2", 0);
+};

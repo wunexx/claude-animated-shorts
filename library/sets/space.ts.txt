@@ -1,0 +1,44 @@
+// LIBRARY PART: a planet in space (banded Venus texture, slow spin) with an atmosphere glow; stars come from the space light preset
+// Append to the END of the short's build.ts (below "library parts appended below"), then register in sets.ts:
+//   SETS.space = spaceSet(SP(0, 0, 0), 30)
+// Needs: use light "space" for its shots; place it far away (e.g. z = +8000).
+// Origin: Two Suns
+const venusTex = () => ctex("venusHD", 1024, 512, (g, r) => {
+  const gr = g.createLinearGradient(0, 0, 0, 512);
+  gr.addColorStop(0, "#d9a05a"); gr.addColorStop(0.5, "#f0c27a"); gr.addColorStop(1, "#d39a52");
+  g.fillStyle = gr; g.fillRect(0, 0, 1024, 512);
+  g.lineCap = "round";
+  for (let i = 0; i < 70; i++) {
+    const y = r() * 512, w = 8 + r() * 26;
+    g.strokeStyle = ["rgba(255,226,160,0.5)", "rgba(190,120,60,0.45)", "rgba(250,205,130,0.55)"][i % 3]; g.lineWidth = w;
+    g.beginPath(); g.moveTo(0, y);
+    for (let x = 0; x <= 1024; x += 64) g.lineTo(x, y + 18 * Math.sin(x / 90 + i) + 30 * Math.sin(x / 300 + i * 0.7) * (0.5 - Math.abs(y / 512 - 0.5)));
+    g.stroke();
+  }
+});
+/** Venus floating in space (sphere of radius R at c) */
+export const buildSpace = (root: THREE.Object3D, c: [number, number, number], R: number) => {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(R, 64, 40), lam("venusMat", () => ({ map: venusTex() })));
+  m.position.set(...c); m.rotation.z = 0.3;
+  root.add(m);
+  return m;
+};
+import type { SetCtx as SpaceCtx, SetHooks as SpaceHooks } from "./sets";
+import { NOINK as NOINK_SPACE } from "./ink";
+/** same soft two-gaussian halo as world.ts haloTex (core sun halo) */
+const spaceHaloTex = () => ctex("sunHalo", 256, 256, (g) => {
+  const im = g.createImageData(256, 256);
+  for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) {
+    const u = Math.hypot(x - 127.5, y - 127.5) / 128;
+    const a = (0.55 * Math.exp(-((u / 0.25) ** 2)) + 0.35 * Math.exp(-((u / 0.6) ** 2))) * (1 - Math.min(1, Math.max(0, (u - 0.8) / 0.2)));
+    const i = (y * 256 + x) * 4; im.data[i] = im.data[i + 1] = im.data[i + 2] = 255; im.data[i + 3] = Math.round(255 * Math.min(1, a));
+  }
+  g.putImageData(im, 0, 0);
+});
+export const spaceSet = (at: [number, number, number], R: number) => (c: SpaceCtx): SpaceHooks => {
+  const planet = buildSpace(c.root, at, R);
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: spaceHaloTex(), color: new THREE.Color(1.0, 0.62, 0.3), fog: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending }));
+  halo.position.set(...at); halo.scale.setScalar(R * 3.4); halo.layers.set(NOINK_SPACE); halo.renderOrder = -0.4;
+  c.root.add(halo);
+  return { update: (u) => { planet.rotation.y = 0.3 + u.t * 0.01; } };
+};

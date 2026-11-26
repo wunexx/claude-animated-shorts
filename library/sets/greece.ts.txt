@@ -1,0 +1,207 @@
+// LIBRARY PART: Greek myth sets (Sisyphus short): Tartarus ember-rock hill along +x with a real 3D boulder posed per shot,
+// Corinth marble terrace + colonnade + throne + balustrade over the sea, a cliff cave mouth glowing red (Taenarum), an
+// Olympus floor of cloud puffs with broken columns, and a 1940s cafe front at night (awning, lit windows, lamp, table).
+// Append to build.ts; register e.g. SETS.tartarus = (c) => tartarusSet(c) as SetHooks; SETS.palace = (c) => palaceSet(c); ...
+// Needs in story.ts: hillY(x), ROCK_R, rockAt(id, t); build.ts imports grassHD, cobbleHD from paint. Light "under" for Tartarus.
+// Origin: Sisyphus (2026-11-17)
+// ======================= Sisyphus short: its own sets =======================
+const U01 = (r: () => number, a: number, b: number) => a + (b - a) * r();
+/** dark ember rock ground (Underworld) */
+const emberRock = () => ctex("emberRock", 1024, 1024, (g, r) => {
+  g.fillStyle = "#86503a"; g.fillRect(0, 0, 1024, 1024);
+  for (let i = 0; i < 420; i++) { g.fillStyle = ["rgba(40,18,24,0.35)", "rgba(150,80,60,0.3)", "rgba(95,50,48,0.45)"][i % 3]; const s = 8 + r() * 60; g.beginPath(); g.ellipse(r() * 1024, r() * 1024, s, s * 0.55, r() * 3, 0, 7); g.fill(); }
+  g.strokeStyle = "rgba(30,12,18,0.55)"; g.lineWidth = 4;
+  for (let i = 0; i < 40; i++) { let x = r() * 1024, y = r() * 1024; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (r() - 0.5) * 90; y += (r() - 0.5) * 90; g.lineTo(x, y); } g.stroke(); }
+});
+/** the boulder's skin: grey stone with tally marks scratched all over (five-bar gates) */
+const boulderTex = () => ctex("boulderTex", 1024, 512, (g, r) => {
+  g.fillStyle = "#b8a68c"; g.fillRect(0, 0, 1024, 512);
+  for (let i = 0; i < 180; i++) { g.fillStyle = ["rgba(90,76,64,0.3)", "rgba(220,206,186,0.35)", "rgba(140,124,108,0.35)"][i % 3]; const s = 10 + r() * 50; g.beginPath(); g.ellipse(r() * 1024, r() * 512, s, s * 0.6, r() * 3, 0, 7); g.fill(); }
+  g.strokeStyle = "rgba(60,46,44,0.75)"; g.lineWidth = 5;
+  for (let i = 0; i < 12; i++) { let x = r() * 1024, y = r() * 512; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 4; k++) { x += (r() - 0.5) * 80; y += (r() - 0.5) * 80; g.lineTo(x, y); } g.stroke(); }
+  // tally marks: one patch of scratched five-bar gates (the side turned to the lens in the close-up)
+  g.strokeStyle = "#f6efe2"; g.lineWidth = 6; g.lineCap = "round";
+  for (let gy = 190; gy < 340; gy += 64) for (let gx = 380; gx < 660; gx += 62) {
+    for (let k = 0; k < 4; k++) { g.beginPath(); g.moveTo(gx + k * 10, gy); g.lineTo(gx + k * 10 + 2, gy + 42); g.stroke(); }
+    g.beginPath(); g.moveTo(gx - 6, gy + 34); g.lineTo(gx + 42, gy + 6); g.stroke();
+  }
+});
+const cliffRock = () => ctex("cliffRock", 1024, 1024, (g, r) => {
+  g.fillStyle = "#a08f7c"; g.fillRect(0, 0, 1024, 1024);
+  for (let i = 0; i < 380; i++) { g.fillStyle = ["rgba(70,58,50,0.3)", "rgba(200,186,166,0.35)", "rgba(130,114,100,0.4)"][i % 3]; const s = 10 + r() * 70; g.beginPath(); g.ellipse(r() * 1024, r() * 1024, s, s * 0.5, r() * 3, 0, 7); g.fill(); }
+  g.strokeStyle = "rgba(50,38,34,0.55)"; g.lineWidth = 4;
+  for (let i = 0; i < 40; i++) { let x = r() * 1024, y = r() * 1024; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 5; k++) { x += (r() - 0.5) * 120; y += r() * 60; g.lineTo(x, y); } g.stroke(); }
+});
+const cone = (b: Batch, mat: THREE.Material, x: number, y: number, z: number, r0: number, h: number, seg = 7) =>
+  b.add(new THREE.ConeGeometry(r0, h, seg).translate(x, y + h / 2, z), mat);
+const cypress = (b: Batch, x: number, y: number, z: number, h: number) => {
+  b.add(new THREE.CylinderGeometry(0.12, 0.16, h * 0.15, 6).translate(x, y + h * 0.075, z), lam("cyTrunk", () => ({ color: "#5a3a28" })));
+  b.add(new THREE.SphereGeometry(1, 10, 12).scale(h * 0.14, h * 0.48, h * 0.14).translate(x, y + h * 0.55, z), lam("cypress", () => ({ color: "#2f5a36" })));
+};
+/** Tartarus: one long ember-rock hill climbing toward +x (STORY.hillY), jagged far peaks, lava channels, the boulder */
+export const tartarusSet = (c: { root: THREE.Object3D; glow: THREE.Group }) => {
+  const b = new Batch(), r = rng(77), hill = STORY.hillY;
+  const g = new THREE.PlaneGeometry(90, 40, 180, 80).rotateX(-Math.PI / 2).translate(18, 0, 0);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), z = p.getZ(i), az = Math.abs(z);
+    const edge = az < 4 ? 1 : Math.max(0, 1 - ((az - 4) / 9) ** 1.4);
+    const bump = 0.06 * Math.sin(x * 2.1 + z * 1.3) + 0.05 * Math.sin(x * 0.7 - z * 2.7);
+    p.setY(i, hill(x) * edge + (az > 2.2 ? bump : 0) + (az > 6 ? 0.4 * Math.sin(x * 0.4 + z) : 0));
+  }
+  g.computeVertexNormals();
+  const rockM = lam("emberRock", () => ({ map: rep(emberRock(), 9, 4) }));
+  b.add(g, rockM);
+  b.add(new THREE.PlaneGeometry(600, 600).rotateX(-Math.PI / 2).translate(0, -0.02, -150), lam("emberFar", () => ({ map: rep(emberRock(), 60, 60) })));
+  const dark = lam("peak", () => ({ color: "#3a1c26" })), mid = lam("peak2", () => ({ color: "#4e2630" }));
+  for (let i = 0; i < 22; i++) { const x = -60 + i * 7 + U01(r, -3, 3), z = -70 - r() * 60; cone(b, i % 2 ? dark : mid, x, -1, z, 6 + r() * 7, 18 + r() * 26, 5); }
+  for (let i = 0; i < 70; i++) {
+    const x = U01(r, -18, 44), z = -3.5 - r() * 22, s = 0.12 + r() * 0.5;
+    b.add(new THREE.DodecahedronGeometry(1, 0).scale(s, s * 0.7, s).rotateY(r() * 6).translate(x, hill(x) * (Math.abs(z) < 4 ? 1 : 0.2) + s * 0.3, z), mid);
+  }
+  // lava channels and a far lava lake (shown with the glow group)
+  const lava = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 0.9, 0.25), fog: false });
+  for (const [x0, z0, len, rot] of [[-14, -16, 30, 0.2], [10, -26, 40, -0.15], [-30, -34, 50, 0.05], [30, -12, 22, 0.5]] as const) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.35 + len * 0.01).rotateX(-Math.PI / 2).rotateY(rot).translate(x0, 0.04, z0), lava);
+    c.glow.add(m);
+  }
+  c.glow.add(new THREE.Mesh(new THREE.CircleGeometry(18, 24).rotateX(-Math.PI / 2).scale(2.4, 1, 1).translate(0, 0.05, -60), lava));
+  b.build(c.root);
+  // the boulder: a real lit 3D stone, posed per shot by the update hook
+  const bg = new THREE.IcosahedronGeometry(STORY.ROCK_R, 4), bp = bg.attributes.position;
+  for (let i = 0; i < bp.count; i++) {
+    const v = new THREE.Vector3(bp.getX(i), bp.getY(i), bp.getZ(i)), n = 1 + 0.05 * Math.sin(v.x * 4.1 + v.y * 2.3) + 0.04 * Math.sin(v.z * 5.2 - v.x * 1.7);
+    v.multiplyScalar(n); bp.setXYZ(i, v.x, v.y, v.z);
+  }
+  bg.computeVertexNormals();
+  const bm = lam("boulder", () => ({ map: boulderTex() }));
+  // one boulder PER world (a crossfade builds a second world): never a module-level global
+  const BOULDER = new THREE.Mesh(bg, bm); BOULDER.castShadow = true; BOULDER.receiveShadow = true;
+  c.root.add(BOULDER);
+  return {
+    update: (u: { id: number; t: number; active: boolean }) => {
+      BOULDER.visible = u.active;
+      if (!u.active) return;
+      const k = STORY.rockAt(u.id, u.t);
+      BOULDER.position.set(k.x, k.y, k.z);
+      // tally side turned toward the lens in the boulder close-up (shot 9)
+      if (u.id === 9) BOULDER.rotation.set(0, 1.21, -0.25 - 0.08 * (u.t - 29));
+      else if (u.id === 1 || u.id === 7 || u.id === 11) BOULDER.rotation.set(0, u.id === 11 ? 1.3 : 1.45, -0.2 - 0.05 * (u.t - (u.id === 1 ? 0 : u.id === 7 ? 21.5 : 38.5)));
+      else BOULDER.rotation.set(0, -1.4, k.spin);
+    },
+    fog: (_l: string, n: number, f: number) => [n, f] as [number, number],
+  };
+};
+
+/** Corinth: marble terrace with a colonnade, the throne, a balustrade over the sea, cypresses */
+export const palaceSet = (c: { root: THREE.Object3D; water: (g: THREE.BufferGeometry) => void }) => {
+  const X = 3000, b = new Batch();
+  const marble = lam("marble", () => ({ map: rep(stoneHD("marbleHD", ["#efe6d8", "#e6dccb", "#f4ece0", "#ddd2c0"], "#b9ab98"), 8, 8) }));
+  const white = lam("marbleW", () => ({ color: "#f1e9dc" }));
+  const gold = lam("gold", () => ({ color: "#e0b040" })), red = lam("redCush", () => ({ color: "#b8343a" }));
+  b.add(new THREE.PlaneGeometry(40, 24).rotateX(-Math.PI / 2).translate(X, 0, -1), marble);
+  b.add(boxGeo(V(X - 20, -6, -13), V(X + 20, 0, -11)), white);
+  const col = (x: number, z: number, h = 6.4) => {
+    b.add(new THREE.CylinderGeometry(0.34, 0.4, h, 16).translate(x, h / 2 + 0.3, z), white);
+    b.add(boxGeo(V(x - 0.55, 0, z - 0.55), V(x + 0.55, 0.3, z + 0.55)), white);
+    b.add(boxGeo(V(x - 0.6, h + 0.3, z - 0.6), V(x + 0.6, h + 0.65, z + 0.6)), white);
+  };
+  for (const x of [X - 6, X - 2, X + 2, X + 6]) col(x, -1.6);
+  b.add(boxGeo(V(X - 7, 7.05, -2.3), V(X + 7, 7.8, -0.9)), white);
+  b.add(boxGeo(V(X - 7, 7.8, -2.3), V(X + 7, 8.05, -0.9)), lam("frieze", () => ({ color: "#3e66a8" })));
+  for (const x of [X - 10, X - 6, X - 2, X + 2, X + 6, X + 10]) col(x, -8.5, 5.5);
+  // balustrade
+  for (let x = X - 14; x <= X + 14; x += 0.7) b.add(new THREE.CylinderGeometry(0.1, 0.14, 0.9, 8).translate(x, 0.45, -11), white);
+  b.add(boxGeo(V(X - 14.2, 0.9, -11.2), V(X + 14.2, 1.08, -10.8)), white);
+  // throne
+  b.add(boxGeo(V(X - 0.7, 0, -1.3), V(X + 0.7, 0.5, -0.4)), white);
+  b.add(boxGeo(V(X - 0.62, 0.5, -1.25), V(X + 0.62, 0.62, -0.45)), red);
+  b.add(boxGeo(V(X - 0.7, 0.5, -1.45), V(X + 0.7, 2.6, -1.25)), white);
+  b.add(boxGeo(V(X - 0.78, 2.6, -1.5), V(X + 0.78, 2.78, -1.2)), gold);
+  for (const s of [-1, 1]) b.add(boxGeo(V(X + s * 0.7 - 0.1, 0.5, -1.25), V(X + s * 0.7 + 0.1, 0.95, -0.45)), gold);
+  for (const [x, z, h] of [[X - 13, -10, 7], [X - 11.6, -10.4, 5.5], [X + 12, -10, 7.5], [X + 13.4, -10.5, 6]] as const) cypress(b, x, 0, z, h);
+  // far coast hills over the sea
+  const hillM = lam("coast", () => ({ color: "#8a6a7a" }));
+  for (let i = 0; i < 6; i++) b.add(new THREE.SphereGeometry(1, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(40 + i * 9, 12 + (i % 3) * 5, 20).translate(X - 150 + i * 60, -6, -260 - (i % 2) * 40), hillM);
+  b.build(c.root);
+  c.water(new THREE.PlaneGeometry(1400, 800, 1, 1).rotateX(-Math.PI / 2).translate(X, -5, -413));
+  return { clouds: true };
+};
+
+/** the cave mouth of the Underworld in a sunny hillside (Taenarum style), red glow inside, an EXIT sign above (fx) */
+export const caveSet = (c: { root: THREE.Object3D }) => {
+  const Z = 8000, b = new Batch(), r = rng(12);
+  b.add(new THREE.PlaneGeometry(200, 120).rotateX(-Math.PI / 2).translate(0, 0, Z - 30), lam("caveGrass", () => ({ map: rep(grassHD(), 30, 18) })));
+  const rock = lam("cliff", () => ({ map: rep(cliffRock(), 4, 2) }));
+  b.add(boxGeo(V(-30, 0, Z - 16), V(30, 13, Z - 6)), rock);
+  for (let i = 0; i < 40; i++) {
+    const x = U01(r, -26, 26), s = 1 + r() * 2.6;
+    if (Math.abs(x) < 3.0 + s * 1.1) continue;
+    b.add(new THREE.DodecahedronGeometry(1, 0).scale(s, s * 0.8, s * 0.7).rotateY(r() * 6).translate(x, U01(r, 0, 12), Z - 6.2), rock);
+  }
+  for (let i = 0; i < 12; i++) { const x = U01(r, -28, 28), s = 1.2 + r() * 2; b.add(new THREE.DodecahedronGeometry(1, 0).scale(s, s * 0.7, s).translate(x, 13 + s * 0.3, Z - 11 + r() * 4), rock); }
+  for (const [x, z, h] of [[-6, -4.5, 6.5], [-8, -5.2, 5], [6.4, -4.8, 7], [9, -5.5, 5.5], [-14, -3, 6], [15, -2, 6.5]] as const) cypress(b, x, 0, Z + z, h);
+  b.build(c.root);
+  // the mouth: an arch-shaped plane with a red glow from deep inside
+  const sh = new THREE.Shape(); sh.moveTo(-1.8, 0); sh.lineTo(-1.8, 2.6); sh.absarc(0, 2.6, 1.8, Math.PI, 0, true); sh.lineTo(1.8, 0); sh.lineTo(-1.8, 0);
+  const tex = ctex("caveGlow", 256, 256, (g) => {
+    const gr = g.createRadialGradient(128, 170, 10, 128, 150, 150); gr.addColorStop(0, "#ff7a3a"); gr.addColorStop(0.35, "#b0281c"); gr.addColorStop(1, "#160406");
+    g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+  });
+  const sg = new THREE.ShapeGeometry(sh, 24), sp2 = sg.attributes.position, uv = new Float32Array(sp2.count * 2);
+  for (let i = 0; i < sp2.count; i++) { uv[2 * i] = (sp2.getX(i) + 1.8) / 3.6; uv[2 * i + 1] = sp2.getY(i) / 4.4; }
+  sg.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+  const m = new THREE.Mesh(sg.translate(0, 0, Z - 5.95), new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1.3, 1.3, 1.3) }));
+  c.root.add(m);
+  return { clouds: true };
+};
+
+/** Olympus: a floor of white cloud puffs with two broken marble columns */
+export const olympusSet = (c: { root: THREE.Object3D }) => {
+  const X = -3000, b = new Batch(), r = rng(5);
+  const cl = lam("cloudPuff", () => ({ color: "#c9d6f0" })), white = lam("marbleW", () => ({ color: "#f1e9dc" }));
+  for (let i = 0; i < 70; i++) {
+    const x = X + U01(r, -16, 16), z = U01(r, -14, 1.5), s = z > -1.5 ? 0.5 + r() * 0.5 : 1.2 + r() * 2.4;
+    if (Math.hypot(x - X, z) < 1.1) continue;
+    b.add(new THREE.SphereGeometry(1, 16, 10).scale(s, s * 0.5, s).translate(x, -0.2 + r() * 0.3, z), cl);
+  }
+  for (const [x, z, h] of [[X - 3.2, -3.5, 3.6], [X + 3.6, -4.5, 2.2]] as const) {
+    b.add(new THREE.CylinderGeometry(0.4, 0.44, h, 16).translate(x, h / 2, z), white);
+    b.add(boxGeo(V(x - 0.6, 0, z - 0.6), V(x + 0.6, 0.35, z + 0.6)), white);
+  }
+  b.build(c.root);
+  return { clouds: true };
+};
+
+/** Paris 1942 at night: a café front with a striped awning, lit windows, a street lamp, cobbles, a round table */
+export const cafeSet = (c: { root: THREE.Object3D; glow: THREE.Group }) => {
+  const Z = -8000, b = new Batch();
+  b.add(new THREE.PlaneGeometry(60, 40).rotateX(-Math.PI / 2).translate(0, 0, Z), lam("cafeCobble", () => ({ map: rep(cobbleHD(), 14, 10) })));
+  const fac = lam("cafeFac", () => ({ map: facadeHD("cafe", 14, 10, { wall: "#d8c7a2", shutter: "#3d5d50", door: true }) }));
+  b.add(boxGeo(V(-7, 0, Z - 3.6), V(7, 10, Z - 2.6)), fac);
+  // awning: red / cream stripes, sloping out over the pavement
+  const aw = lam("awning", () => ({ map: ctex("awningTex", 512, 64, (g) => { for (let i = 0; i < 16; i++) { g.fillStyle = i % 2 ? "#f2e6cc" : "#b8302e"; g.fillRect(i * 32, 0, 32, 64); } }), side: THREE.DoubleSide }));
+  const ag = new THREE.PlaneGeometry(8, 1.8).rotateX(-Math.PI / 2 + 0.45).translate(0, 3.0, Z - 1.85);
+  b.add(ag, aw);
+  // table + two chairs
+  const iron = lam("iron", () => ({ color: "#2a2a30" })), top = lam("tableTop", () => ({ color: "#c9c2b4" })), wood = lam("chairW", () => ({ color: "#8a5a34" }));
+  const cloth = lam("cloth", () => ({ color: "#efe7d6" }));
+  b.add(new THREE.CylinderGeometry(0.32, 0.36, 0.76, 28).translate(0, 0.38, Z + 0.35), cloth);
+  b.add(new THREE.CylinderGeometry(0.33, 0.33, 0.02, 28).translate(0, 0.765, Z + 0.35), top);
+  for (const [x, z] of [[1.15, Z + 0.15], [0, Z - 0.6]] as const) {
+    b.add(boxGeo(V(x - 0.22, 0.44, z - 0.22), V(x + 0.22, 0.48, z + 0.22)), wood);
+    b.add(boxGeo(V(x - 0.22, 0.48, z - 0.24), V(x + 0.22, 0.95, z - 0.2)), wood);
+    for (const [dx, dz] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) b.add(new THREE.CylinderGeometry(0.02, 0.02, 0.44, 6).translate(x + dx, 0.22, z + dz), iron);
+  }
+  // lamp post
+  b.add(new THREE.CylinderGeometry(0.07, 0.1, 3.6, 8).translate(2.6, 1.8, Z - 1.2), iron);
+  b.build(c.root);
+  const win = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.9, 1.25, 0.55), fog: false });
+  for (const x of [-4.6, -2.0, 0.6, 2.4, 4.6]) c.glow.add(new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5).translate(x, 1.5, Z - 2.58), win));
+  for (const x of [-4.6, -1.5, 1.5, 4.6]) c.glow.add(new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.3).translate(x, 6.2, Z - 2.58), win));
+  c.glow.add(new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10).translate(2.6, 3.75, Z - 1.2), win));
+  // the café sign, unlit so it stays readable
+  const sign = ctex("cafeSign", 512, 128, (g) => { g.fillStyle = "#2a3d34"; g.fillRect(0, 0, 512, 128); g.fillStyle = "#f2d27a"; g.font = "bold 84px Georgia, serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("CAFÉ", 256, 68); });
+  c.root.add(new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6).translate(0, 3.75, Z - 2.58), new THREE.MeshBasicMaterial({ map: sign, color: new THREE.Color(0.85, 0.85, 0.85) })));
+  return { streak: false };
+};

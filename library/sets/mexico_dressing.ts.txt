@@ -1,0 +1,107 @@
+// LIBRARY PART: Mexican dressing: papel picado with fairy bulbs, cacti, agave, clay pots, reeds, cypress (dressTown needs the town set; dressLake the lake city)
+// Append to the END of the short's build.ts (below "library parts appended below"), then register in sets.ts:
+//   inside SETS.town: dressTown(c.root, c.rays, c.glow);   inside SETS.lake: dressLake(c.root, STORY.LX, c.rays);
+// Needs: the town set (dressTown) / lake_city set (dressLake); D0.
+// Origin: La Llorona
+// ======================= Mexican set dressing (look rework) =======================
+const PP_COLS = ["#e2457a", "#2fa36b", "#f08a2c", "#3f7fd8", "#f2c230", "#8a4fc9"];
+const papelTex = (col: string) => ctex("papel" + col, 128, 160, (g) => {
+  g.clearRect(0, 0, 128, 160);
+  g.fillStyle = col; g.beginPath(); g.moveTo(0, 0); g.lineTo(128, 0); g.lineTo(128, 138);
+  for (let x = 128; x >= 0; x -= 16) g.lineTo(x, x % 32 ? 160 : 140);
+  g.closePath(); g.fill();
+  g.globalCompositeOperation = "destination-out"; // cut-out pattern: flower, diamonds, dots
+  g.beginPath(); g.arc(64, 70, 22, 0, 7); g.fill();
+  for (let k = 0; k < 8; k++) { const a = (k * Math.PI) / 4; g.beginPath(); g.ellipse(64 + Math.cos(a) * 36, 70 + Math.sin(a) * 36, 7, 4, a, 0, 7); g.fill(); }
+  for (const [x, y] of [[18, 20], [110, 20], [18, 124], [110, 124], [64, 18]]) { g.beginPath(); g.moveTo(x, y - 7); g.lineTo(x + 6, y); g.lineTo(x, y + 7); g.lineTo(x - 6, y); g.fill(); }
+  g.globalCompositeOperation = "source-over";
+});
+const papelMat = (col: string) => lam("papel" + col, () => ({ map: papelTex(col), alphaTest: 0.5, side: THREE.DoubleSide }));
+/** a sagging string of papel picado flags between a and b with fairy-light bulbs (bulbs go to the glow batch) */
+const papel = (b: Batch, gb: Batch | null, a: THREE.Vector3, c: THREE.Vector3, sag = 0.9) => {
+  const n = Math.max(4, Math.round(a.distanceTo(c) / 0.75)), cord = lam("cord", () => ({ color: "#2a2430" }));
+  const pt = (u: number) => a.clone().lerp(c, u).add(V(0, -sag * 4 * u * (1 - u), 0));
+  const dir = c.clone().sub(a).setY(0).normalize(), yaw = Math.atan2(dir.x, dir.z) + Math.PI / 2;
+  for (let i = 0; i < n; i++) {
+    const p0 = pt(i / n), p1 = pt((i + 1) / n);
+    b.add(new THREE.CylinderGeometry(0.012, 0.012, p0.distanceTo(p1), 4).applyMatrix4(new THREE.Matrix4().compose(p0.clone().add(p1).multiplyScalar(0.5),
+      new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), p1.clone().sub(p0).normalize()), V(1, 1, 1))), cord);
+    const m = pt((i + 0.5) / n);
+    b.add(new THREE.PlaneGeometry(0.42, 0.52).translate(0, -0.27, 0), papelMat(PP_COLS[i % PP_COLS.length]), new THREE.Matrix4().compose(m, new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), yaw), V(1, 1, 1)));
+    if (gb && i % 2 === 0) gb.add(new THREE.SphereGeometry(0.06, 8, 6).translate(p0.x, p0.y - 0.06, p0.z), GLOW_WIN);
+  }
+};
+/** potted / planted cactus (columns with arms) */
+const cactus = (b: Batch, x: number, y: number, z: number, h: number, seed: number) => {
+  if (inTheWay(x - 0.5, x + 0.5, y, y + h, z - 0.5, z + 0.5, true)) return;
+  const gm = lam("cactus", () => ({ color: "#4f8a4a" })), r = rng(seed);
+  b.add(new THREE.CapsuleGeometry(0.16 * h / 1.6, h * 0.8, 4, 10).translate(x, y + h * 0.5, z), gm);
+  for (const s of [-1, 1]) if (r() < 0.8) {
+    const ay = y + h * (0.35 + 0.25 * r());
+    b.add(new THREE.CapsuleGeometry(0.1 * h / 1.6, 0.25 * h, 4, 8).rotateZ(Math.PI / 2).translate(x + s * 0.2 * h, ay, z), gm);
+    b.add(new THREE.CapsuleGeometry(0.1 * h / 1.6, 0.35 * h, 4, 8).translate(x + s * 0.33 * h, ay + 0.18 * h, z), gm);
+  }
+};
+const agave = (b: Batch, x: number, y: number, z: number, h: number, seed: number) => {
+  if (inTheWay(x - 0.6, x + 0.6, y, y + h, z - 0.6, z + 0.6, true)) return;
+  const gm = lam("agave", () => ({ color: "#7aa08a" })), r = rng(seed);
+  for (let i = 0; i < 11; i++) {
+    const a = (i / 11) * Math.PI * 2 + r(), tilt = 0.55 + 0.35 * r();
+    b.add(new THREE.ConeGeometry(0.07 * h, h, 4).translate(0, h / 2, 0).applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(Math.sin(a) * tilt, 0, -Math.cos(a) * tilt))).translate(x, y, z), gm);
+  }
+};
+const pot = (b: Batch, x: number, y: number, z: number, h: number) => {
+  if (inTheWay(x - 0.3, x + 0.3, y, y + h, z - 0.3, z + 0.3, true)) return;
+  const pts = [[0.0, 0], [0.22, 0.02], [0.32, 0.35], [0.26, 0.75], [0.15, 0.9], [0.18, 1.0]].map(([r0, y0]) => new THREE.Vector2(r0 * h, y0 * h));
+  b.add(new THREE.LatheGeometry(pts, 14).translate(x, y, z), lam("clay", () => ({ color: "#b8643f" })));
+};
+/** a bed of reeds at the foot of a wall / shore: dark thin blades (silhouettes against the water at night) */
+const reeds = (b: Batch, x0: number, x1: number, z: number, y: number, seed: number, depth = 1.2) => {
+  const r = rng(seed), m = lam("reed", () => ({ color: "#3d5a32" })), tip = lam("reedTip", () => ({ color: "#6b4a2a" }));
+  for (let x = x0; x < x1; x += 0.35 + r() * 0.5) {
+    if (r() < 0.25) { x += 3 + r() * 6; continue; }
+    const h = 1.2 + r() * 1.6, zz = z + (r() - 0.5) * depth, lean = (r() - 0.5) * 0.25;
+    if (inTheWay(x - 0.1, x + 0.1, y, y + h, zz - 0.1, zz + 0.1, true)) continue;
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(lean, r() * 6, lean * 0.6));
+    b.add(new THREE.BoxGeometry(0.035, h, 0.035).translate(0, h / 2, 0), m, new THREE.Matrix4().compose(V(x, y, zz), q, V(1, 1, 1)));
+    if (r() < 0.4) b.add(new THREE.CapsuleGeometry(0.045, 0.22, 3, 6).translate(0, h + 0.05, 0), tip, new THREE.Matrix4().compose(V(x, y, zz), q, V(1, 1, 1)));
+  }
+};
+/** tall dark cypress */
+const cypress = (b: Batch, x: number, y: number, z: number, h: number) => {
+  if (inTheWay(x - 1, x + 1, y, y + h, z - 1, z + 1, true)) return;
+  b.add(new THREE.SphereGeometry(1, 12, 10).scale(0.16 * h, 0.5 * h, 0.16 * h).translate(x, y + 0.52 * h, z), lam("cypress", () => ({ color: "#2f5a3a" })));
+};
+
+/** the town's Mexican dressing: papel picado over the quays and the main street, cacti, agave, pots, reeds, cypress */
+export const dressTown = (root: THREE.Object3D, rays: Ray[], glow: THREE.Object3D) => {
+  const b = new Batch(), gb = new Batch(), r = rng(91);
+  sight = rays;
+  for (const bank of [-1, 1]) {
+    // flags strung lamp to lamp along both quays and across the bridge ends
+    for (let x = -126; x < 126; x += 14) if (Math.abs(x) > 6 && Math.abs(x + 14) > 6) papel(b, gb, V(x, STORY.D0 + 3.3, bank * 31.0), V(x + 14, STORY.D0 + 3.3, bank * 31.0), 0.7);
+    for (let z = 42; z < 120; z += 9) papel(b, gb, V(-6.2, STORY.D0 + 5.2, bank * z), V(6.2, STORY.D0 + 5.2, bank * (z + 2)), 0.9);
+    for (let x = -120; x < 120; x += 7 + r() * 9) {
+      if (Math.abs(x) < 8) continue;
+      const k = r(), z = bank * (35.6 + r() * 0.5);
+      if (k < 0.35) pot(b, x, STORY.D0, z, 0.55 + r() * 0.3);
+      else if (k < 0.6) agave(b, x, STORY.D0, z, 0.8 + r() * 0.3, x * 7 + bank);
+      else if (k < 0.75) cactus(b, x, STORY.D0, z, 1.3 + r() * 0.6, x * 13 + bank);
+    }
+    reeds(b, -160, 160, bank * 29.2, 0, 300 + bank, 1.4);
+    for (let x = -150; x < 150; x += 9 + r() * 14) if (Math.abs(x) > 12) cypress(b, x, STORY.D0, bank * (44 + r() * 2), 9 + r() * 4);
+  }
+  b.build(root);
+  gb.build(glow, false);
+  sight = [];
+};
+/** reeds around the lake city's shores and canals, plus a few on the open water near the ghost's spots */
+export const dressLake = (root: THREE.Object3D, LX: number, rays: Ray[]) => {
+  const b = new Batch();
+  sight = rays;
+  reeds(b, LX - 80, LX + 80, 76.5, 0, 501, 2.0);
+  reeds(b, LX - 80, LX + 80, -96.5, 0, 502, 2.0);
+  for (const [x0, x1, z] of [[-60, -20, 150], [5, 40, 128], [120, 170, 128], [-30, 30, 210]] as const) reeds(b, LX + x0, LX + x1, z, 0, 600 + x0, 4);
+  b.build(root);
+  sight = [];
+};

@@ -7,7 +7,7 @@ Private study only. Videos: vids/ (720p, original EN audio), transcripts: tx/, p
 - Voice: one male narrator, fast and steady: 3.5-4.1 words/s (median 3.7), almost no pauses (word gaps >0.25 s total <1 s per video).
 - Loudness -14 LUFS integrated, LRA ~2.4 LU (heavily compressed). Music/SFX bed under voice only ~5-10 dB below speech.
 - Captions: one word (sometimes 2-3) at a time, white bold sans, thin black outline, lower-middle, hard swaps on each word.
-  (OUR RULE: no captions unless the user asks.)
+  (OURS: captions + labels are on, our own design: SKILL.md steps 3b and 4b.)
 
 ## Script formula (20/20 follow it)
 1. **Hook = paradox stated as fact, sentence 1, no setup.** A person did something that sounds dumb/impossible with stakes,

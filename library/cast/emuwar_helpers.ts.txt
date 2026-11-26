@@ -1,0 +1,41 @@
+// LIBRARY PART: Emu War staging helpers - emu(out, cam, t, p, heading, mode, o) picks front / back / side (mirrored) from the
+// heading vs the camera, run gait, `fall` tips it over; emuOn(path) runs it along a path (dust puffs with o.dust); rabbit(a->b hop).
+// Paste into cast.ts below the library marker; needs card, qz, lerp3, mirrored helpers (Rat Tails/Emu War cast.ts) and fxEmu, fxPuff, fxRabbit.
+// Hook lesson: a tall animal + a gunner in a portrait frame = depth-stacked from a LOW lens (y ~0.95): the animal towers
+// near the lens at the frame edge, the gunner sits low in the gap. Origin: Emu War (2026-11-23)
+type EmuMode = "stand" | "peck" | "look" | "run";
+type EmuExpr = "calm" | "blink" | "shock" | "smug";
+/** an emu at p (feet), heading h (rad, 0 = +z). Within ~37 deg of the lens axis it shows the front / back drawing, else
+ *  the side drawing facing its heading (mirrored for screen-left). run = gait cycle; `fall` 0..1 tips it over. */
+const emu = (out: Stage, cam: CamInfo, t: number, p: V3, h: number, mode: EmuMode, o: { expr?: EmuExpr; seed?: number; s?: number; fall?: number; rate?: number } = {}) => {
+  const s = 1.95 * (o.s ?? 1), seed = o.seed ?? 0, ex = o.expr ?? "calm";
+  const fx_ = Math.sin(h), fz = Math.cos(h), cx = cam.pos.x - p[0], cz = cam.pos.z - p[2], cl = Math.hypot(cx, cz) || 1;
+  const c = (fx_ * cx + fz * cz) / cl, flip = fx_ * cam.right.x + fz * cam.right.z < 0;
+  const ph = mode === "run" ? qz((t * (o.rate ?? 2.6) + seed * 0.37) % 1, 8) : 0;
+  const fall = qz(o.fall ?? 0, 6), y = p[1] + s * (0.5 - 0.025) * (1 - 0.55 * fall);
+  const opt = { rot: (flip ? 1 : -1) * fall * 1.45, bg: false };
+  if (Math.abs(c) > 0.8) {
+    const pose = c > 0 ? "front" : "back", key = `emu|${pose}|${ph}|${ex}`;
+    card(out, key, 600, 600, (pp) => fxEmu(pp, pose, ph, ex), [p[0], y, p[2]], s, s, opt);
+  } else {
+    const pose = mode === "run" ? "run" : mode, key = `emu|${pose}|${ph}|${ex}|${flip}`, f = (pp: Pen) => fxEmu(pp, pose, ph, ex);
+    card(out, key, 600, 600, flip ? mirrored(600, f) : f, [p[0], y, p[2]], s, s, opt);
+  }
+};
+/** an emu moving along path(t) (null = not there); stands / pecks when it stops */
+const emuOn = (out: Stage, cam: CamInfo, t: number, path: (t: number) => V3 | null, idle: EmuMode, o: { expr?: EmuExpr; seed?: number; s?: number; face?: number; rate?: number; dust?: boolean } = {}) => {
+  const p = path(t); if (!p) return;
+  const q = path(t + 0.06) ?? p, r = path(Math.max(0, t - 0.06)) ?? p, mv = Math.hypot(q[0] - p[0], q[2] - p[2]) > 0.004;
+  const h = mv ? Math.atan2(q[0] - p[0], q[2] - p[2]) : Math.hypot(p[0] - r[0], p[2] - r[2]) > 0.004 ? Math.atan2(p[0] - r[0], p[2] - r[2]) : (o.face ?? 0);
+  emu(out, cam, t, p, h, mv ? "run" : idle, o);
+  if (mv && o.dust) { const k = qz(((t * 2.6 + (o.seed ?? 0) * 0.37) % 1), 4); card(out, `puff|${k}`, 300, 300, (pp) => fxPuff(pp, k), [r[0], 0.18, r[2]], 0.55, 0.55, { soft: true }); }
+};
+/** rabbits hopping a -> b over [t0, t1] (side hop drawing) */
+const rabbit = (out: Stage, cam: CamInfo, t: number, a: V3, b: V3, t0: number, t1: number, col: number) => {
+  if (t < t0 || t > t1 + 0.6) return;
+  const k = clamp01((t - t0) / (t1 - t0)), p = lerp3(a, b, k), ph = qz((t * 3.2) % 1, 6), hop = k < 1 ? 0.12 * Math.abs(Math.sin(t * 3.2 * Math.PI)) : 0;
+  const dx = b[0] - a[0], dz = b[2] - a[2], flip = dx * cam.right.x + dz * cam.right.z < 0;
+  card(out, `rab|${col}|${ph}|${flip}|${k < 1}`, 300, 300, (pp) => fxRabbit(pp, k < 1 ? "hop" : "sit", col, ph, flip), [p[0], 0.2 + hop, p[2]], 0.42, 0.42);
+};
+/** a medal pinned on the left breast (screen right on a front view): ~1.2 m up, just in front of the body card */
+const medal = (out: Stage, cam: CamInfo, P: V3, up = 1.2, side = 0.1) => card(out, "medal", 120, 200, (pp) => fxMedalAU(pp), handAt(cam, P, up, 0.08, side), 0.055, 0.09);

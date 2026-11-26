@@ -1,0 +1,36 @@
+// LIBRARY PART: open sea: huge water plane, wooden pier along +z, striped lighthouse on rocks (lamp glows at dusk/night), far island
+// Append to the END of the short's build.ts (below "library parts appended below"), then register in sets.ts:
+//   SETS.sea = seaSet(PIER)   (PIER = deck-top point, e.g. [LX, 1.6, 0])
+// Needs: nothing (place it far from other sets, e.g. x = 3000).
+// Origin: Two Suns
+const stripeTex = () => ctex("lightStripe", 64, 256, (g) => {
+  for (let i = 0; i < 4; i++) { g.fillStyle = i % 2 ? "#f4f1ea" : "#d0403a"; g.fillRect(0, i * 64, 64, 64); }
+});
+/** the open sea: a wooden pier running out along +z, a striped lighthouse on rocks, a far island */
+export const buildSea = (root: THREE.Object3D, pier: [number, number, number], glow: THREE.Object3D) => {
+  const b = new Batch(), gb = new Batch(), [px, py, pz] = pier;
+  const wood = lam("pierWood", () => ({ color: "#b5835a" })), post = lam("pierPost", () => ({ color: "#6b4a33" }));
+  b.add(boxGeo(V(px - 1.6, py - 0.3, pz - 60), V(px + 1.6, py, pz + 6), 2), wood);
+  for (let z = pz - 58; z <= pz + 6; z += 4) for (const s of [-1, 1]) b.add(new THREE.CylinderGeometry(0.16, 0.18, py + 3.4, 8).translate(px + s * 1.5, (py - 3.4) / 2 + 0.2, z), post);
+  for (const s of [-1, 1]) b.add(boxGeo(V(px + s * 1.55 - 0.05, py + 0.8, pz - 60), V(px + s * 1.55 + 0.05, py + 0.9, pz + 6)), post);
+  // lighthouse
+  const lx = px - 16, lz = pz + 26, rock = lam("seaRock", () => ({ color: "#8a8478" }));
+  b.add(new THREE.SphereGeometry(1, 16, 10).scale(7, 3, 6).translate(lx, 0, lz), rock);
+  b.add(new THREE.SphereGeometry(1, 12, 8).scale(3, 2, 3).translate(lx + 6, 0, lz - 3), rock);
+  const tower = new THREE.CylinderGeometry(1.5, 2.2, 15, 20, 1, true).translate(lx, 2.5 + 7.5, lz);
+  b.add(tower, lam("lightTower", () => ({ map: rep(stripeTex(), 1, 1), side: THREE.DoubleSide })));
+  b.add(new THREE.CylinderGeometry(2.0, 2.0, 0.3, 20).translate(lx, 17.65, lz), lam("lampIron", () => ({ color: "#2e3240" })));
+  b.add(new THREE.ConeGeometry(1.6, 1.8, 20).translate(lx, 20.6, lz), lam("lightCap", () => ({ color: "#d0403a" })));
+  gb.add(new THREE.CylinderGeometry(1.1, 1.1, 1.9, 16).translate(lx, 18.75, lz), GLOW_WIN);
+  // far island on the horizon
+  b.add(new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2).scale(140, 26, 60).translate(px - 160, -1, pz + 520), lam("islandA", () => ({ color: "#5f8a52" })));
+  b.build(root);
+  gb.build(glow, false);
+};
+
+import type { SetCtx as SeaCtx, SetHooks as SeaHooks } from "./sets";
+export const seaSet = (pier: [number, number, number]) => (c: SeaCtx): SeaHooks => {
+  buildSea(c.root, pier, c.glow);
+  c.water(flatQuad(pier[0] - 1100, pier[0] + 1100, pier[2] - 1100, pier[2] + 1100, 1, 1, 0));
+  return { clouds: true, fog: (_l, near, far) => [Math.max(near, 60), far * 2.2] };
+};

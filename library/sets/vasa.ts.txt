@@ -1,0 +1,321 @@
+// LIBRARY PART: 17th-century warship (Vasa, 1628): lofted hull with tumblehome, stern castle + gilded blue transom, two rows
+// of gun ports per side with hinged red lids and guns, three masts with yards, set / furled sails (billow per frame), Swedish
+// ensign + pennants, rigging, harbour jetty; seabed (murky blue, mud), museum hall (dark, warm spot glows, cradle), blueprint backdrop.
+// Append to build.ts; register: SETS.harbour = both(townSet, harbourDress, shipSet); SETS.seabed = ...; SETS.museum = ...; SETS.diagram = ...
+// Needs: story.ts shipPose(id, t) -> ShipPose, ShipPose type, D0. Origin: Vasa (2026-11-19)
+// ======================= Vasa short: the warship and its places =======================
+/** half-beam of the hull at station x (-20 stern .. 20 bow) and height y (keel -4.5 .. top) */
+export const hullHalf = (x: number, y: number) => {
+  const u = Math.max(-1, Math.min(1, x / 20));
+  const len = u > 0 ? Math.pow(Math.max(0, 1 - Math.pow(u, 2.4)), 0.55) : 0.7 + 0.3 * Math.pow(Math.max(0, 1 - Math.pow(-u, 3)), 0.5);
+  const prof = y < 1 ? Math.pow(Math.sin(Math.min(1, Math.max(0, (y + 4.5) / 5.5)) * Math.PI / 2), 0.75) * 0.97 + 0.03 : 1 - 0.2 * Math.pow((y - 1) / 6.6, 1.4);
+  return 5 * len * Math.max(0.03, prof);
+};
+/** top of the hull side: main deck rail 7.6, stern castle up to 12, forecastle 9.4 */
+export const hullTop = (x: number) => 7.6 + 4.4 * STORY.smooth((-12 - x) / 5) + 1.8 * STORY.smooth((x - 13) / 3);
+export const DECK_Y = 6.9, POOP_Y = 11.2, FORE_Y = 8.7;
+export const deckY = (x: number) => (x < -12 ? POOP_Y : x > 14 ? FORE_Y : DECK_Y);
+const hullTex = () => ctex("vasaHull", 1024, 512, (g, r) => {
+  // v 0 = keel (y -4.5) .. 1 = y 12 (stern top)
+  const Y = (y: number) => 512 - ((y + 4.5) / 16.5) * 512;
+  g.fillStyle = "#8a5530"; g.fillRect(0, 0, 1024, 512);
+  for (let y = -4.5; y < 12; y += 0.42) {
+    g.fillStyle = `rgba(${40 + r() * 30},${24 + r() * 16},${12},${0.25 + r() * 0.2})`; g.fillRect(0, Y(y), 1024, 6 * r() + 2);
+    g.fillStyle = "rgba(20,10,6,0.55)"; g.fillRect(0, Y(y), 1024, 1.5);
+  }
+  for (let i = 0; i < 220; i++) { g.fillStyle = "rgba(20,10,6,0.45)"; g.fillRect(r() * 1024, Y(-4.5 + r() * 16), 1.5, 9); }
+  g.fillStyle = "#3a2416"; g.fillRect(0, Y(0.25), 1024, 10); // waterline wale
+  g.fillStyle = "#4a2c1a";
+  for (const y of [1.25, 3.5, 5.9]) { g.fillRect(0, Y(y + 0.18), 1024, 9); g.fillStyle = "rgba(255,220,160,0.12)"; g.fillRect(0, Y(y + 0.18), 1024, 2); g.fillStyle = "#4a2c1a"; }
+  // painted upper bulwark: red band with gold scroll dots (Vasa was brightly painted above the guns)
+  g.fillStyle = "#9c2f25"; g.fillRect(0, Y(7.55), 1024, Y(6.6) - Y(7.55));
+  g.fillStyle = "#e7b84a"; for (let x = 6; x < 1024; x += 22) { g.beginPath(); g.arc(x, (Y(7.55) + Y(6.6)) / 2, 3.6, 0, 7); g.fill(); }
+  g.fillStyle = "#e7b84a"; g.fillRect(0, Y(7.6), 1024, 4); g.fillRect(0, Y(6.62), 1024, 3);
+  // stern castle panels (u < 0.2): blue with gold frames
+  g.fillStyle = "#2e4f8f"; g.fillRect(0, Y(11.8), 200, Y(8.0) - Y(11.8));
+  g.strokeStyle = "#e7b84a"; g.lineWidth = 3;
+  for (let x = 8; x < 196; x += 30) g.strokeRect(x, Y(11.4), 24, Y(8.4) - Y(11.4));
+  g.fillStyle = "rgba(20,30,40,0.35)"; g.fillRect(0, Y(-0.1), 1024, Y(-4.5) - Y(-0.1)); // darker below water
+});
+const transomTex = () => ctex("vasaTransom", 512, 512, (g, r) => {
+  g.fillStyle = "#2b4a8c"; g.fillRect(0, 0, 512, 512);
+  const gold = "#eab84a", dk = "#7a5a1a";
+  g.strokeStyle = gold; g.lineWidth = 10; g.strokeRect(14, 14, 484, 484);
+  g.lineWidth = 5; g.strokeRect(34, 34, 444, 444);
+  // stern gallery windows
+  for (let i = 0; i < 5; i++) { g.fillStyle = "#1a1830"; g.fillRect(70 + i * 76, 70, 50, 62); g.strokeStyle = gold; g.lineWidth = 5; g.strokeRect(70 + i * 76, 70, 50, 62); }
+  // two lions holding a crowned shield with the Vasa sheaf
+  const lion = (cx: number, s: number) => { // rampant lion: body, tail, mane of spikes, face, raised paw
+    g.strokeStyle = gold; g.lineWidth = 12; g.lineCap = "round";
+    g.beginPath(); g.moveTo(cx - s * 30, 380); g.quadraticCurveTo(cx - s * 95, 330, cx - s * 70, 250); g.stroke(); // tail
+    g.fillStyle = gold; g.beginPath(); g.arc(cx - s * 66, 244, 14, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(cx, 320, 40, 66, s * 0.25, 0, 7); g.fill();
+    g.fillStyle = "#c48a2a";
+    for (let k = 0; k < 14; k++) { const a = (k / 14) * Math.PI * 2; g.beginPath(); g.moveTo(cx + s * 16 + Math.cos(a) * 30, 222 + Math.sin(a) * 30); g.lineTo(cx + s * 16 + Math.cos(a + 0.22) * 62, 222 + Math.sin(a + 0.22) * 62); g.lineTo(cx + s * 16 + Math.cos(a + 0.44) * 30, 222 + Math.sin(a + 0.44) * 30); g.fill(); }
+    g.fillStyle = gold; g.beginPath(); g.arc(cx + s * 16, 222, 34, 0, 7); g.fill();
+    g.fillStyle = dk; g.beginPath(); g.arc(cx + s * 26, 212, 5, 0, 7); g.fill(); g.beginPath(); g.arc(cx + s * 6, 212, 5, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(cx + s * 16, 236, 9, 6, 0, 0, 7); g.fill();
+    g.strokeStyle = dk; g.lineWidth = 4; g.beginPath(); g.arc(cx + s * 16, 240, 14, 0.3, Math.PI - 0.3); g.stroke();
+    g.strokeStyle = gold; g.lineWidth = 16; g.beginPath(); g.moveTo(cx + s * 26, 290); g.lineTo(cx + s * 62, 250); g.stroke(); // raised paw
+    g.fillStyle = gold; g.fillRect(cx - 30, 360, 18, 66); g.fillRect(cx + 10, 360, 18, 66);
+    g.fillRect(cx - 36, 420, 28, 12); g.fillRect(cx + 6, 420, 28, 12);
+  };
+  lion(150, 1); lion(362, -1);
+  g.fillStyle = "#c0353a"; g.beginPath(); g.moveTo(206, 190); g.lineTo(306, 190); g.lineTo(306, 300); g.quadraticCurveTo(256, 380, 206, 300); g.closePath(); g.fill();
+  g.strokeStyle = gold; g.lineWidth = 7; g.stroke();
+  g.strokeStyle = gold; g.lineWidth = 6; // the Vasa sheaf
+  for (let k = -3; k <= 3; k++) { g.beginPath(); g.moveTo(256, 330); g.lineTo(256 + k * 12, 214); g.stroke(); }
+  g.fillRect(232, 270, 48, 9);
+  g.fillStyle = gold; g.beginPath(); g.moveTo(216, 182); for (let k = 0; k < 5; k++) { g.lineTo(216 + k * 20 + 10, 150); g.lineTo(216 + k * 20 + 20, 172); } g.lineTo(296, 182); g.closePath(); g.fill();
+  for (let i = 0; i < 40; i++) { g.fillStyle = gold; g.beginPath(); g.arc(40 + r() * 432, 440 + r() * 40, 4 + r() * 5, 0, 7); g.fill(); }
+});
+const deckTex = () => ctex("vasaDeck", 256, 256, (g, r) => {
+  g.fillStyle = "#b48a5a"; g.fillRect(0, 0, 256, 256);
+  for (let y = 0; y < 256; y += 16) { g.fillStyle = `rgba(90,60,30,${0.1 + r() * 0.15})`; g.fillRect(0, y, 256, 16); g.fillStyle = "#4a3020"; g.fillRect(0, y, 256, 2); }
+  for (let i = 0; i < 30; i++) { g.fillStyle = "#4a3020"; g.fillRect(r() * 256, Math.floor(r() * 16) * 16, 2, 16); }
+});
+const flagTexSE = () => ctex("flagSweden", 256, 160, (g) => {
+  g.fillStyle = "#2a5fae"; g.fillRect(0, 0, 256, 160);
+  g.fillStyle = "#f3c63a"; g.fillRect(72, 0, 30, 160); g.fillRect(0, 65, 256, 30);
+});
+const sailTex = () => ctex("vasaSail", 128, 128, (g) => {
+  g.fillStyle = "#efe4c8"; g.fillRect(0, 0, 128, 128);
+  g.fillStyle = "rgba(150,120,80,0.25)"; for (let x = 0; x < 128; x += 16) g.fillRect(x, 0, 2, 128);
+  g.fillStyle = "rgba(150,120,80,0.35)"; g.fillRect(0, 0, 128, 4); g.fillRect(0, 124, 128, 4);
+});
+/** a thin round line from a to b (rigging, cables) */
+const rope = (b: Batch, mat: THREE.Material, a: THREE.Vector3, c: THREE.Vector3, r = 0.05) => {
+  const d = c.clone().sub(a), L = d.length();
+  const geo = new THREE.CylinderGeometry(r, r, L, 5, 1, true);
+  const q = new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), d.normalize());
+  b.add(geo, mat, new THREE.Matrix4().compose(a.clone().add(c).multiplyScalar(0.5), q, V(1, 1, 1)));
+};
+export type Ship = { g: THREE.Group; rig: THREE.Group; flags: THREE.Group; cables: THREE.Group; lids: { o: THREE.Object3D; s: number; k: number }[]; guns: THREE.Object3D[]; sails: THREE.Mesh[]; furls: THREE.Object3D[]; ports: THREE.Vector3[] };
+export const PORT_ROWS = [2.2, 4.6];
+export const PORT_XS = [-9.6, -7.2, -4.8, -2.4, 0, 2.4, 4.8, 7.2, 9.6, 12];
+/** builds the warship into a new group (local frame: bow +x, waterline y 0, deck y 6.9) */
+export const buildShip = (parent: THREE.Object3D): Ship => {
+  const g = new THREE.Group(), rig = new THREE.Group(), flags = new THREE.Group(), cables = new THREE.Group();
+  g.add(rig); g.add(flags); g.add(cables); parent.add(g);
+  const b = new Batch(), rb = new Batch(), fb = new Batch(), cb = new Batch();
+  const hullM = lam("vasaHullM", () => ({ map: hullTex(), side: THREE.DoubleSide }));
+  // ---- lofted hull sides ----
+  const NX = 48, NY = 22;
+  for (const s of [-1, 1]) {
+    const pos: number[] = [], uv: number[] = [], idx: number[] = [];
+    for (let i = 0; i <= NX; i++) {
+      const x = -20 + (40 * i) / NX, top = hullTop(x), bot = -4.5 + 1.2 * STORY.smooth((x - 15) / 5);
+      for (let j = 0; j <= NY; j++) {
+        const y = bot + ((top - bot) * j) / NY;
+        pos.push(x, y, s * hullHalf(x, y)); uv.push(i / NX, (y + 4.5) / 16.5);
+      }
+    }
+    for (let i = 0; i < NX; i++) for (let j = 0; j < NY; j++) {
+      const a = i * (NY + 1) + j, c = a + NY + 1;
+      if (s > 0) idx.push(a, c, a + 1, a + 1, c, c + 1); else idx.push(a, a + 1, c, a + 1, c + 1, c);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    geo.setIndex(idx); geo.computeVertexNormals();
+    b.add(geo, hullM);
+  }
+  // ---- transom (flat stern) ----
+  {
+    const pts: THREE.Vector2[] = [];
+    const top = hullTop(-20);
+    for (let j = 0; j <= 16; j++) { const y = -4.5 + ((top + 4.5) * j) / 16; pts.push(new THREE.Vector2(hullHalf(-20, y), y)); }
+    for (let j = 16; j >= 0; j--) { const y = -4.5 + ((top + 4.5) * j) / 16; pts.push(new THREE.Vector2(-hullHalf(-20, y), y)); }
+    const sh = new THREE.Shape(pts), geo = new THREE.ShapeGeometry(sh);
+    const p = geo.attributes.position, uvA = geo.attributes.uv;
+    for (let k = 0; k < p.count; k++) { const z = p.getX(k), y = p.getY(k); uvA.setXY(k, 0.5 + z / 7, (y - 4) / (top - 4)); }
+    geo.rotateY(-Math.PI / 2).translate(-20, 0, 0);
+    b.add(geo, lam("vasaTransomM", () => ({ map: transomTex(), side: THREE.DoubleSide })));
+  }
+  // ---- decks + bulkheads ----
+  const deckM = lam("vasaDeckM", () => ({ map: rep(deckTex(), 6, 2) }));
+  const deckStrip = (x0: number, x1: number, y: number) => {
+    const pos: number[] = [], uv: number[] = [], idx: number[] = [], n = 20;
+    for (let i = 0; i <= n; i++) { const x = x0 + ((x1 - x0) * i) / n, w = hullHalf(x, y) * 0.99; pos.push(x, y, -w, x, y, w); uv.push(i / n, 0, i / n, 1); }
+    for (let i = 0; i < n; i++) { const a = 2 * i; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+    b.add(geo, deckM);
+  };
+  deckStrip(-12, 14, DECK_Y); deckStrip(-19.9, -12, POOP_Y); deckStrip(14, 19.2, FORE_Y);
+  const bulk = (x: number, y0: number, y1: number) => {
+    const w = hullHalf(x, (y0 + y1) / 2) * 0.98;
+    b.add(new THREE.PlaneGeometry(2 * w, y1 - y0).rotateY(Math.PI / 2).translate(x, (y0 + y1) / 2, 0), lam("vasaBulk", () => ({ color: "#6b4528", side: THREE.DoubleSide })));
+    for (let k = -2; k <= 2; k++) b.add(boxGeo(V(x - 0.02, y0 + 0.9, k * 1.6 - 0.35), V(x + 0.04, y0 + 2.0, k * 1.6 + 0.35)), lam("vasaDoor", () => ({ color: "#2e1c12" })));
+    b.add(boxGeo(V(x - 0.15, y1 - 0.15, -w), V(x + 0.15, y1 + 0.85, w)), lam("vasaRailGold", () => ({ color: "#b8862e" })));
+  };
+  bulk(-12, DECK_Y, POOP_Y); bulk(14, DECK_Y, FORE_Y);
+  // gold rail caps along the hull top
+  for (const s of [-1, 1]) for (let i = 0; i < 40; i++) {
+    const x0 = -20 + i, x1 = x0 + 1, t0 = hullTop(x0), t1 = hullTop(x1);
+    const a = V(x0, t0, s * hullHalf(x0, t0)), c = V(x1, t1, s * hullHalf(x1, t1));
+    rope(b, lam("vasaRailGold", () => ({ color: "#b8862e" })), a, c, 0.16);
+  }
+  // keel + stem + beakhead
+  b.add(boxGeo(V(-20, -4.8, -0.25), V(17, -4.3, 0.25)), lam("vasaKeel", () => ({ color: "#3a2416" })));
+  b.add(new THREE.CylinderGeometry(0.5, 0.9, 6, 8).rotateZ(-1.1).translate(22, 9.6, 0), lam("vasaBeak", () => ({ color: "#5b3a24" })));
+  b.add(new THREE.SphereGeometry(0.9, 12, 10).scale(1.4, 1, 0.8).translate(24.4, 10.8, 0), lam("vasaLion", () => ({ color: "#e0aa3e" })));
+  // ---- gun ports, lids, guns ----
+  const portM = lam("vasaPort", () => ({ color: "#140c0a" }));
+  const lidOut = lam("vasaLidOut", () => ({ color: "#5b3a24" })), lidIn = lam("vasaLidIn", () => ({ color: "#c2322a" }));
+  const gunM = lam("vasaGun", () => ({ color: "#3a3532" }));
+  const lidGeoO = new THREE.PlaneGeometry(0.9, 0.9).translate(0, -0.45, 0.03), lidGeoI = new THREE.PlaneGeometry(0.86, 0.86).translate(0, -0.45, 0.0).rotateY(Math.PI);
+  const gunGeo = new THREE.CylinderGeometry(0.17, 0.22, 1.6, 10).rotateX(Math.PI / 2);
+  const lids: Ship["lids"] = [], guns: THREE.Object3D[] = [], ports: THREE.Vector3[] = [];
+  PORT_ROWS.forEach((y, row) => PORT_XS.forEach((x0, k) => {
+    const x = x0 + (row ? 1.2 : 0);
+    for (const s of [-1, 1]) {
+      const z = s * hullHalf(x, y), tilt = Math.atan2(hullHalf(x, y + 0.5) - hullHalf(x, y - 0.5), 1);
+      b.add(new THREE.PlaneGeometry(0.82, 0.82).translate(0, 0, 0.04).rotateX(-tilt).rotateY(s > 0 ? 0 : Math.PI).translate(x, y, z), portM);
+      ports.push(V(x, y, z));
+      const hinge = new THREE.Object3D(); hinge.position.set(x, y + 0.45, z + s * 0.05); hinge.rotation.order = "YXZ"; hinge.rotation.y = s > 0 ? 0 : Math.PI;
+      const mo = new THREE.Mesh(lidGeoO, lidOut), mi = new THREE.Mesh(lidGeoI, lidIn);
+      for (const m of [mo, mi]) { m.castShadow = true; m.receiveShadow = true; hinge.add(m); }
+      g.add(hinge); lids.push({ o: hinge, s, k: row * 10 + k });
+      const gun = new THREE.Mesh(gunGeo, gunM); gun.position.set(x, y - 0.05, z + s * 0.55); gun.castShadow = true; gun.visible = false; g.add(gun); guns.push(gun);
+    }
+  }));
+  // ---- masts: stumps (always) + upper masts, yards, sails, rigging (rig group) ----
+  const mastM = lam("vasaMast", () => ({ color: "#8a5a34" })), ropeM = lam("vasaRope", () => ({ color: "#2a2018" }));
+  const sailM = lam("vasaSailM", () => ({ map: sailTex(), side: THREE.DoubleSide }));
+  const sails: THREE.Mesh[] = [], furls: THREE.Object3D[] = [];
+  const MASTS: [number, number, number, number[]][] = [[11, FORE_Y - 1.8, 24, [11, 19]], [1, DECK_Y, 30, [13, 22]], [-15, POOP_Y, 16, [9]]];
+  // sail: a plane hanging below a yard, bulging toward +x by the mesh's scale.x
+  const sailGeo = (w: number, h: number) => {
+    const geo = new THREE.PlaneGeometry(w, h, 10, 8).rotateY(Math.PI / 2);
+    const p = geo.attributes.position;
+    for (let k = 0; k < p.count; k++) { const z = p.getZ(k), u = (h / 2 - p.getY(k)) / h; p.setX(k, Math.cos((z / w) * Math.PI) * (Math.sin(Math.PI * u) * 0.85 + 0.15 * u)); }
+    geo.computeVertexNormals();
+    return geo.translate(0, -h / 2, 0);
+  };
+  for (const [x, y0, H, yards] of MASTS) {
+    b.add(new THREE.CylinderGeometry(0.42, 0.5, 6.5, 12).translate(x, y0 + 3.2, 0), mastM);
+    rb.add(new THREE.CylinderGeometry(0.2, 0.42, H - 6, 10).translate(x, y0 + 6.5 + (H - 6) / 2 - 0.5, 0), mastM);
+    rb.add(new THREE.CylinderGeometry(1.4, 1.2, 0.35, 14).translate(x, y0 + H * 0.55, 0), mastM); // top platform
+    yards.forEach((yy, i) => {
+      const wy = (H > 20 ? 16 : 10) * (i ? 0.7 : 1), yh = y0 + yy;
+      rb.add(new THREE.CylinderGeometry(0.16, 0.16, wy, 8).rotateX(Math.PI / 2).translate(x + 0.4, yh, 0), mastM);
+      const hh = i === 0 ? yy - 2.4 : yards[i] - yards[i - 1] - 1.2, sail = new THREE.Mesh(sailGeo(wy * 0.94, hh), sailM);
+      sail.position.set(x + 0.5, yh - 0.1, 0); sail.castShadow = true; sail.receiveShadow = true; rig.add(sail); sails.push(sail);
+      const furl = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, wy * 0.9, 10).rotateX(Math.PI / 2), sailM);
+      furl.position.set(x + 0.5, yh - 0.4, 0); furl.castShadow = true; rig.add(furl); furls.push(furl);
+    });
+    // shrouds to the rails on both sides
+    for (const s of [-1, 1]) for (let k = -1; k <= 1; k++) {
+      const top = V(x, y0 + H * 0.55, s * 0.6), bx = x + k * 1.2, ty = hullTop(bx);
+      rope(rb, ropeM, top, V(bx, ty, s * hullHalf(bx, ty)), 0.05);
+    }
+    // pennant at the top
+    const pen = new THREE.PlaneGeometry(5, 0.5).translate(2.5, 0, 0);
+    const pp = pen.attributes.position; for (let k = 0; k < pp.count; k++) { const u = pp.getX(k) / 5; pp.setY(k, pp.getY(k) * (1 - u)); pp.setZ(k, 0.4 * Math.sin(u * 5)); }
+    fb.add(pen.translate(x, y0 + H + 0.3, 0), lam("vasaPennant", () => ({ color: "#f3c63a", side: THREE.DoubleSide })));
+  }
+  // stays + bowsprit
+  rope(rb, ropeM, V(1, DECK_Y + 30 * 0.55, 0), V(11, FORE_Y - 1.8 + 6, 0), 0.07);
+  rope(rb, ropeM, V(11, FORE_Y - 1.8 + 24 * 0.55, 0), V(28, 14, 0), 0.07);
+  rb.add(new THREE.CylinderGeometry(0.25, 0.4, 13, 10).rotateZ(-1.15).translate(23, 11.3, 0), mastM);
+  // ensign at the stern
+  fb.add(new THREE.CylinderGeometry(0.1, 0.12, 8, 6).translate(-20.6, POOP_Y + 4, 0), mastM);
+  {
+    const fl = new THREE.PlaneGeometry(6, 3.8, 12, 1).translate(-3, 0, 0);
+    const p = fl.attributes.position; for (let k = 0; k < p.count; k++) p.setZ(k, 0.45 * Math.sin(p.getX(k) * 1.2));
+    fb.add(fl.translate(-20.7, POOP_Y + 6, 0), lam("flagSE", () => ({ map: flagTexSE(), side: THREE.DoubleSide })));
+  }
+  // salvage cables (seabed raise)
+  for (const [x, s] of [[-10, 1], [-10, -1], [9, 1], [9, -1]] as const) rope(cb, lam("vasaCable", () => ({ color: "#2a2a30" })), V(x, -3.5, s * hullHalf(x, -3.5)), V(x, 70, s * 7), 0.32);
+  b.build(g); rb.build(rig); fb.build(flags); cb.build(cables);
+  return { g, rig, flags, cables, lids, guns, sails, furls, ports };
+};
+/** pose the ship for a frame: transform, open lids (staggered), guns, sails set / furled + billow, flags, cables */
+export const poseShip = (sh: Ship, p: STORY.ShipPose) => {
+  sh.g.position.set(p.x, p.y, p.z); sh.g.rotation.set(p.roll, 0, p.pitch);
+  for (const l of sh.lids) {
+    const k = STORY.clamp01(p.ports * 1.6 - (l.k % 10) * 0.06 - (l.k >= 10 ? 0.1 : 0));
+    l.o.rotation.x = -k * 1.75;
+  }
+  sh.guns.forEach((gn, i) => { gn.visible = p.ports > 0.3 && STORY.clamp01(sh.lids[i].o.rotation.x / -1.2) > 0.5; });
+  sh.rig.visible = p.masts; sh.flags.visible = p.flags && p.masts; sh.cables.visible = p.cables;
+  for (const s of sh.sails) { s.visible = p.sails > 0.02 && p.masts; s.scale.set(Math.max(0.05, p.billow), Math.max(0.05, p.sails), 1); }
+  for (const f of sh.furls) f.visible = p.sails <= 0.02 && p.furls && p.masts;
+};
+/** a ship in a place: built once per world, posed every frame while that place is on screen */
+const shipIn = (c: SetCtx): SetHooks => {
+  const sh = buildShip(c.root);
+  return { update: (u) => { if (u.active) poseShip(sh, STORY.shipPose(u.id, u.t)); } };
+};
+/** a timber jetty from the +z quay out to the moored ship (top y 2.5) */
+const jetty = (c: SetCtx) => {
+  const b = new Batch(), wood = lam("jettyWood", () => ({ map: rep(deckTex(), 1, 6) })), post = lam("jettyPost", () => ({ color: "#4a3020" }));
+  b.add(boxGeo(V(58, 2.2, 4.4), V(62, 2.5, 30)), wood);
+  for (let z = 5; z < 30; z += 3.2) for (const x of [58.2, 61.8]) b.add(new THREE.CylinderGeometry(0.22, 0.22, 4.2, 8).translate(x, 0.6, z), post);
+  for (let z = 6; z < 30; z += 4) for (const x of [58.3, 61.7]) b.add(new THREE.CylinderGeometry(0.12, 0.12, 1.1, 6).translate(x, 3.0, z), post);
+  b.add(boxGeo(V(58.2, 3.45, 5), V(58.4, 3.6, 30)), post); b.add(boxGeo(V(61.6, 3.45, 5), V(61.8, 3.6, 30)), post);
+  for (const [x, z] of [[59.2, 27], [60.8, 28]] as const) b.add(new THREE.CylinderGeometry(0.42, 0.42, 1.0, 12).translate(x, 3.0, z), lam("barrel", () => ({ color: "#8a5a34" })));
+  b.build(c.root);
+};
+/** the harbour: the river town, bunting + crates, the jetty and the ship */
+export const harbourSet: SetBuilder = (c) => {
+  const h1 = townSet(c);
+  buildHarbour(c.root, c.rays, c.glow, { boats: [], baker: [-110, STORY.D0, 37], bench: [-112, STORY.D0, 33] });
+  jetty(c);
+  const h2 = shipIn(c);
+  return { ...h1, update: h2.update };
+};
+/** the seabed (x -3000): mud floor, rocks, murky blue all round (fog), the wreck */
+export const SEA_X = -3000;
+export const seabedSet: SetBuilder = (c) => {
+  const b = new Batch(), r = rng(91);
+  const mud = lam("mud", () => ({ map: rep(ctex("mudTex", 256, 256, (g, rr) => { g.fillStyle = "#4a5a52"; g.fillRect(0, 0, 256, 256); for (let i = 0; i < 400; i++) { g.fillStyle = `rgba(${30 + rr() * 40},${50 + rr() * 30},${45 + rr() * 30},0.5)`; g.beginPath(); g.arc(rr() * 256, rr() * 256, 2 + rr() * 6, 0, 7); g.fill(); } }), 20, 20) }));
+  b.add(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2).translate(SEA_X, 0, 0), mud);
+  const rock = lam("seaRock", () => ({ color: "#3e4a50" }));
+  for (let i = 0; i < 60; i++) { const x = SEA_X + (r() - 0.5) * 160, z = (r() - 0.5) * 160, s = 0.5 + r() * 2.2; if (Math.abs(z) < 9 && Math.abs(x - SEA_X) < 26) continue; b.add(new THREE.DodecahedronGeometry(1, 0).scale(s, s * 0.6, s).translate(x, 0, z), rock); }
+  const weed = lam("seaWeed", () => ({ color: "#3f6a4a", side: THREE.DoubleSide }));
+  for (let i = 0; i < 70; i++) { const x = SEA_X + (r() - 0.5) * 120, z = (r() - 0.5) * 120, h = 1 + r() * 2.5; if (Math.abs(z) < 8 && Math.abs(x - SEA_X) < 24) continue; b.add(new THREE.PlaneGeometry(0.4, h).translate(0, h / 2, 0).rotateY(r() * 3).translate(x, 0, z), weed); }
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(120, 24, 12), new THREE.MeshBasicMaterial({ color: "#2a6f9a", side: THREE.BackSide, fog: false }));
+  dome.position.set(SEA_X, 0, 0); c.root.add(dome);
+  b.build(c.root);
+  const h = shipIn(c);
+  return { fog: () => [25, 240], update: h.update };
+};
+/** the museum hall (z 8000): dark walls with gallery levels, warm spot glows, the ship on a steel cradle */
+export const MUS_Z = 8000;
+export const museumHall: SetBuilder = (c) => {
+  const b = new Batch(), Z = MUS_Z;
+  const wall = lam("musWallV", () => ({ color: "#7a5a48" })), floor = lam("musFloorV", () => ({ color: "#8a6a4e" })), rail = lam("musRail", () => ({ color: "#2a2422" }));
+  b.add(new THREE.PlaneGeometry(220, 140).rotateX(-Math.PI / 2).translate(-10, -1.0, Z), floor);
+  b.add(new THREE.PlaneGeometry(220, 70).translate(-10, 34, Z - 34), wall);
+  b.add(new THREE.PlaneGeometry(140, 70).rotateY(Math.PI / 2).translate(-95, 34, Z), wall);
+  b.add(new THREE.PlaneGeometry(140, 70).rotateY(-Math.PI / 2).translate(70, 34, Z), wall);
+  b.add(new THREE.PlaneGeometry(220, 140).rotateX(Math.PI / 2).translate(-10, 62, Z), lam("musCeil", () => ({ color: "#4a3a3a" })));
+  for (const y of [8, 15, 22]) { // gallery levels along the back wall with visitors' railings
+    b.add(boxGeo(V(-95, y - 0.4, Z - 34), V(70, y, Z - 29)), lam("musGallery", () => ({ color: "#6a5a4e" })));
+    b.add(boxGeo(V(-95, y, Z - 29.1), V(70, y + 1.1, Z - 29)), rail);
+  }
+  for (const x of [-14, -4, 6, 14]) b.add(boxGeo(V(x - 0.4, -1, Z - 1.5), V(x + 0.4, -0.2, Z + 1.5)), rail); // cradle under the keel
+  b.add(boxGeo(V(-20, -1, Z - 0.6), V(18, -0.25, Z + 0.6)), rail);
+  const gl = new Batch();
+  for (let x = -80; x <= 60; x += 14) for (const z of [-20, 0, 20]) gl.add(new THREE.CircleGeometry(0.7, 12).rotateX(Math.PI / 2).translate(x, 61.8, Z + z), GLOW_WIN);
+  for (let x = -90; x <= 66; x += 6) for (const y of [8.9, 15.9, 22.9]) gl.add(new THREE.PlaneGeometry(0.5, 0.3).translate(x, y, Z - 33.9), GLOW_WIN);
+  b.build(c.root); gl.build(c.root, false);
+  for (const [x, y, z] of [[-40, 20, Z + 30], [0, 30, Z + 34], [-30, 6, Z + 20]] as const) {
+    const L = new THREE.PointLight(new THREE.Color(1.0, 0.82, 0.6), 2600, 0, 2); L.position.set(x, y, z); c.root.add(L);
+  }
+  const h = shipIn(c);
+  return { indoor: true, update: h.update };
+};
+/** a blueprint backdrop for the cross-section diagram (x 3000) */
+export const DIA_X = 3000;
+export const diagramSet: SetBuilder = (c) => {
+  const tex = ctex("blueprint", 512, 512, (g) => {
+    g.fillStyle = "#1f4f8f"; g.fillRect(0, 0, 512, 512);
+    g.strokeStyle = "rgba(200,225,255,0.22)"; g.lineWidth = 1.5;
+    for (let k = 0; k <= 512; k += 32) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k, 512); g.stroke(); g.beginPath(); g.moveTo(0, k); g.lineTo(512, k); g.stroke(); }
+  });
+  const b = new Batch();
+  b.add(new THREE.PlaneGeometry(60, 60).translate(DIA_X, 6, -2), new THREE.MeshBasicMaterial({ map: rep(tex, 4, 4), fog: false }));
+  b.build(c.root, false);
+  return { indoor: true };
+};

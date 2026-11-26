@@ -1,0 +1,144 @@
+// LIBRARY PART: Canute short cast - canuteO(bare) (crowned king, ginger beard, red robe; bare = no crown), courtierO(v)
+// (robed Anglo-Danish courtiers), BEACH_O (modern beachgoer); fx fxThrone [500x900] (tall arched back; card h 1.86 m, centre y 0.93, seat 0.6 m, place it 0.4 m behind the sitter), fxWave(k) [900x500], fxSpray(k) [800x800],
+// fxCrossCrown [500x900], fxNewspaper [800x600] (KING CANUTE headline: edit the text), fxDeckchair [500x600], fxUmbrella [600x900],
+// fxClockBits(ring) [700x700] (alarm-clock bells + legs to put around a moon/ball), fxSweatDrop [64x96]. Append to toon.ts. Origin: Canute (2026-11-20)
+// ======================= Canute short: cast + drawings =======================
+/** King Canute: crown, ginger beard, red robe with a gold sash (bare = no crown, after he gives it up) */
+export const canuteO = (bare = false, wet = false): Outfit => ({ jacket: wet ? "#8a1d26" : "#b3282d", pants: "#8e1f2a", boots: "#5a3a22", hat: bare ? "hair" : "crown", cap: "#f2c230",
+  hair: "#a8612e", beard: "#a8612e", dress: wet ? "#8a1d26" : "#b3282d", sash: "#f2c230" });
+/** Anglo-Danish courtiers in long robes (v 0..3) */
+export const courtierO = (v: number): Outfit => {
+  const J = ["#3c7a4e", "#3d5f9e", "#7a4a8e", "#c08a2a"][v % 4], S = ["#e8c75a", "#e9e2cf", "#e8c75a", "#7a2a2a"][v % 4];
+  const H = ["#5a3a22", "#2e2420", "#c9a060", "#6e4a2a"][v % 4];
+  return { jacket: J, pants: shade(J, 0.7), boots: "#4a3222", hat: "hair", hair: H, dress: J, sash: S, moustache: v % 2 ? H : undefined, beard: v === 2 ? H : undefined };
+};
+/** a modern beachgoer: red cap, blue T-shirt, sand shorts */
+export const BEACH_O: Outfit = { jacket: "#3a8fd0", pants: "#e0b36a", boots: "#f0f0f0", hat: "cap", cap: "#e24a3a" };
+
+/** carved oak throne with a red cushion and a TALL arched back that rises above a seated king's crown [500 x 900];
+ *  seat top at y ~ 610 (0.6 m on a 1.86 m card). Keep the back's top edge above the sitter's head: an edge at face height
+ *  beside the head reads as a cut through the face (Canute 2026-11-20). */
+export const fxThrone = (p: Pen) => {
+  const oak = "#8a5530", dk = "#5e3a22", gold = "#f2c230";
+  const back: P2[] = [[110, 670], [110, 120], ...curve([110, 120], [250, -10], [390, 120], 16).slice(1), [390, 670]];
+  p.poly(back, oak, 12);
+  p.poly(rrect(150, 150, 350, 620, 22), "#b3282d", 9);
+  for (let i = 0; i < 4; i++) p.stroke([[170 + i * 53, 170], [170 + i * 53, 600]], 5, mul("#b3282d", [0.8, 0.8, 0.8]));
+  for (const x of [110, 390]) { p.poly(rrect(x - 26, 110, x + 26, 880, 12), dk, 11); p.ell(x, 104, 34, 30, gold, 10); }
+  p.poly(rrect(70, 610, 430, 670, 18), oak, 11);
+  p.poly(rrect(84, 592, 416, 628, 16), "#c8403a", 9);
+  for (const x of [96, 404]) p.poly(rrect(x - 18, 666, x + 18, 890, 8), dk, 10);
+  p.poly(rrect(96, 760, 404, 784, 8), dk, 8);
+  p.ell(250, 60, 30, 30, gold, 9);
+};
+
+/** a curling wave with a foam crest [900 x 500]; k 0..1 = how far it has broken (curl -> flat foam) */
+export const fxWave = (p: Pen, k: number) => {
+  const deep = "#3f9fd6", lite = "#8fd3f4", foam = "#f4fbff", h = 300 * (1 - 0.6 * k);
+  const top: P2[] = [];
+  for (let i = 0; i <= 30; i++) { const x = 30 + (840 * i) / 30, e = Math.sin((Math.PI * i) / 30); top.push([x, 480 - h * (0.25 + 0.75 * e) - 14 * Math.sin(i * 1.1 + k * 4)]); }
+  p.poly([[30, 490], ...top, [870, 490]], deep, 12);
+  p.poly([[60, 490], ...top.slice(2, 29).map(([x, y]) => [x, y + 0.5 * (490 - y)] as P2), [840, 490]], lite, 0);
+  p.stroke(top.slice(3, 28), 46 * (1 - 0.4 * k), INK);
+  p.stroke(top.slice(3, 28), 34 * (1 - 0.4 * k), foam);
+  // the curl at the crest
+  const [cx, cy] = top[15];
+  if (k < 0.8) p.ell(cx - 30, cy + 26, 56 * (1 - k), 40 * (1 - k), foam, 10, 170, 470);
+  for (let i = 0; i < 7; i++) p.stroke([[110 + i * 110, 470], [150 + i * 110, 462]], 8, foam);
+};
+
+/** wooden cross on a stone base with Canute's gold crown hanging on it [500 x 900] */
+export const fxCrossCrown = (p: Pen) => {
+  const wood = "#8a5530", gold = "#f2c230";
+  p.poly([[140, 890], [360, 890], [330, 800], [170, 800]], "#9c9488", 11);
+  p.poly(rrect(222, 60, 278, 810, 10), wood, 12);
+  p.poly(rrect(70, 220, 430, 276, 10), wood, 12);
+  for (let i = 0; i < 6; i++) p.stroke([[236, 110 + i * 120], [236, 170 + i * 120]], 4, mul(wood, [0.7, 0.7, 0.7]));
+  // the crown hangs from the right arm on a cord
+  p.stroke([[370, 276], [370, 330]], 6, INK);
+  const yb = 470, w = 82, h = 120, sp: P2[] = [[370 - w, yb]];
+  for (let i = 0; i <= 4; i++) { const x = 370 - w + (2 * w * i) / 4; sp.push([x, yb - h]); if (i < 4) sp.push([x + w / 4, yb - h * 0.5]); }
+  sp.push([370 + w, yb]);
+  p.shadedFill(sp, gold, mul(gold, [0.75, 0.6, 0.4]), -Math.PI / 4, w, 0.4);
+  p.poly(sp, null, 10);
+  p.poly(rrect(370 - w, yb - 26, 370 + w, yb + 8, 6), gold, 9);
+  for (let i = 0; i <= 4; i++) p.dot(370 - w + (2 * w * i) / 4, yb - h - 8, 10, i % 2 ? "#c0353a" : "#3a8fd0");
+  p.dot(370, yb - 10, 12, "#c0353a");
+};
+
+/** today's newspaper [800 x 600]: masthead, the KING CANUTE headline, a cartoon of a king yelling at a wave */
+export const fxNewspaper = (p: Pen) => {
+  const g = p.g, paper = "#f3efe4", ink2 = "#2a2630";
+  p.poly([[20, 30], [780, 14], [790, 580], [14, 590]], paper, 12);
+  p.stroke([[400, 40], [404, 570]], 4, "#cfc7b6");
+  g.fillStyle = ink2; g.textAlign = "center"; g.textBaseline = "alphabetic";
+  g.font = "bold 44px Georgia, serif"; g.fillText("THE DAILY TIDE", 400, 88);
+  p.stroke([[60, 104], [740, 98]], 5, ink2);
+  g.font = "900 92px Impact, 'Arial Black', sans-serif"; g.fillText("KING CANUTE!", 400, 200);
+  g.font = "bold 36px Arial, sans-serif"; g.fillText("Fool tries to stop the tide", 400, 252);
+  // cartoon panel: a crowned king shouting at a wave
+  p.poly(rrect(70, 280, 450, 550, 10), "#ffffff", 7);
+  p.poly([[80, 540], [80, 420], [140, 380], [200, 420], [260, 400], [300, 540]], "#8fd3f4", 6);
+  p.ell(372, 400, 34, 32, "#f1c9a0", 6);
+  p.poly([[340, 372], [346, 344], [358, 362], [372, 340], [386, 362], [398, 344], [404, 372]], "#f2c230", 5);
+  p.poly(rrect(342, 430, 402, 540, 14), "#b3282d", 6);
+  p.stroke([[344, 450], [290, 410]], 8, INK);
+  p.ell(355, 410, 9, 7, INK, 0);
+  for (const [a, b] of [[[262, 360], [236, 340]], [[258, 384], [228, 384]], [[262, 408], [236, 428]]] as [P2, P2][]) p.stroke([a, b], 6, INK);
+  // column lines
+  for (let i = 0; i < 10; i++) { p.stroke([[480, 300 + i * 26], [740, 300 + i * 26]], 7, "#b9b1a2"); }
+};
+
+/** striped deckchair seen from the front [500 x 600] */
+export const fxDeckchair = (p: Pen) => {
+  const wood = "#c99a5c";
+  p.poly([[80, 590], [130, 120], [370, 120], [420, 590]], wood, 11);
+  p.poly([[120, 520], [150, 150], [350, 150], [380, 520]], "#ffffff", 9);
+  for (let i = 0; i < 4; i++) p.poly([[150 + i * 50, 150], [175 + i * 50, 150], [175 + i * 58 + (i - 2) * 6, 520], [150 + i * 58 + (i - 2) * 6, 520]], "#e24a3a", 0);
+  p.poly([[120, 520], [150, 150], [350, 150], [380, 520]], null, 9);
+  p.poly(rrect(60, 440, 440, 470, 8), wood, 9);
+};
+
+/** beach umbrella, red / white [600 x 900] */
+export const fxUmbrella = (p: Pen) => {
+  p.stroke([[300, 210], [312, 890]], 14, "#e9e2cf");
+  const top: P2[] = [[30, 260], [300, 40], [570, 260]];
+  p.poly(curve(top[0], [300, 20], top[2], 20).concat([[570, 260], [30, 260]]), "#ffffff", 11);
+  for (let i = 0; i < 6; i += 2) p.poly([[30 + i * 90, 260], [300, 50], [120 + i * 90, 260]], "#e24a3a", 0);
+  p.poly(curve(top[0], [300, 20], top[2], 20).concat([[570, 260], [30, 260]]), null, 11);
+};
+
+/** alarm-clock bits for the moon [700 x 700]: two bells, hammer, legs, ringing lines; ring 0..1 shakes */
+export const fxClockBits = (p: Pen, ring: number) => {
+  const gold = "#f2c230", sh = Math.sin(ring * 40) * 14 * ring;
+  for (const s of [-1, 1]) {
+    const cx = 350 + s * 190 + sh, cy = 150;
+    p.ell(cx, cy, 90, 70, gold, 12, 180, 360, s * 30);
+    p.stroke([[cx - 70, cy + 4], [cx + 70, cy + 4]], 14, INK);
+    p.stroke([[350 + s * 120, 230], [350 + s * 165, 175]], 14, INK);
+    p.stroke([[350 + s * 140, 560], [350 + s * 210, 670]], 18, INK);
+    p.ell(350 + s * 214, 672, 34, 16, INK, 0);
+  }
+  p.stroke([[350 + sh * 2, 110], [350 + sh * 2, 190]], 12, INK);
+  p.ell(350 + sh * 2, 96, 20, 20, INK, 0);
+  if (ring > 0.05) for (const s of [-1, 1]) for (let i = 0; i < 3; i++) {
+    const a = rad(-60 - i * 30) * s, r = 260 + 10 * i;
+    p.stroke([[350 + s * Math.abs(Math.cos(a)) * r, 150 - Math.abs(Math.sin(a)) * r * 0.6], [350 + s * Math.abs(Math.cos(a)) * (r + 70), 150 - Math.abs(Math.sin(a)) * (r + 70) * 0.6]], 12, "#fff3b0");
+  }
+};
+
+/** one sweat drop [64 x 96] */
+export const fxSweatDrop = (p: Pen) => {
+  p.poly([[32, 6], [52, 52], [50, 70], [32, 88], [14, 70], [12, 52]], "#bfe8ff", 6);
+  p.ell(26, 60, 6, 9, "#ffffff", 0);
+};
+
+/** a splash of sea water over someone's boots [800 x 800]: a foam band + flying teardrop drops; k 0..1 */
+export const fxSpray = (p: Pen, k: number) => {
+  const foam = "#f4fbff", blue = "#8fd3f4", rise = Math.sin(Math.min(1, k * 1.4) * Math.PI);
+  p.poly([[60, 760], ...Array.from({ length: 13 }, (_, i) => [60 + i * 56.7, 700 - (i % 2 ? 70 : 30) * (0.5 + rise)] as P2), [740, 760]], foam, 11);
+  for (let i = 0; i < 9; i++) {
+    const a = rad(-160 + i * 17.5), d = 120 + 330 * k, x = 400 + d * Math.cos(a), y = 680 + d * Math.sin(a) * 1.2 + 420 * k * k, r = 30 * (1 - 0.6 * k);
+    if (y > 40 && y < 720) { p.ell(x, y, r, r * 1.15, i % 2 ? blue : foam, 8); p.ell(x - r * 0.3, y - r * 0.35, r * 0.25, r * 0.25, '#ffffff', 0); }
+  }
+};

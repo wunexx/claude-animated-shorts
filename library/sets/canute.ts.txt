@@ -1,0 +1,132 @@
+// LIBRARY PART: Canute short sets - beachSet(): an English beach c. 1030 (sand sloping up from the sea at STORY.SLOPE,
+// dunes, chalk cliffs, green downs, a striped royal pavilion, pennants, a beached longship) whose WATER LEVEL follows
+// STORY.tideAt(id, t) per frame (rising tide); old things hide in shot STORY.MODERN_SHOT; daytime moon at STORY.SKYMOON.
+// spaceSet(): Earth seen from above the north pole (radius 8) with a see-through ocean bulge toward the moon (STORY.bulgeAt),
+// spinning (STORY.spinAt) with a red pin = "your beach", and the moon at STORY.MOON. Append to build.ts. Origin: Canute (2026-11-20)
+// Register: SETS.beach = (c) => beachSet(c); SETS.space = (c) => spaceSet(c);
+
+// ======================= Canute short: its own sets =======================
+const sandTex = () => ctex("canuteSand", 512, 512, (g, r) => {
+  g.fillStyle = "#e9cf94"; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 900; i++) { g.fillStyle = r() > 0.5 ? "rgba(190,150,90,0.35)" : "rgba(255,240,200,0.4)"; g.fillRect(r() * 512, r() * 512, 2 + r() * 3, 2 + r() * 3); }
+  for (let i = 0; i < 14; i++) { g.strokeStyle = "rgba(200,160,100,0.25)"; g.lineWidth = 3; g.beginPath(); const y = r() * 512; g.moveTo(0, y); g.bezierCurveTo(170, y + 14, 340, y - 14, 512, y); g.stroke(); }
+});
+const moonTex = () => ctex("canuteMoon", 256, 256, (g, r) => {
+  g.fillStyle = "#e9ecf2"; g.beginPath(); g.arc(128, 128, 124, 0, Math.PI * 2); g.fill();
+  for (let i = 0; i < 9; i++) { g.fillStyle = "rgba(150,160,185,0.45)"; g.beginPath(); g.arc(50 + r() * 156, 50 + r() * 156, 8 + r() * 20, 0, Math.PI * 2); g.fill(); }
+});
+const earthTex = () => ctex("canuteEarth", 1024, 512, (g, r) => {
+  g.fillStyle = "#2f7fd0"; g.fillRect(0, 0, 1024, 512);
+  g.fillStyle = "#dff0fb"; g.fillRect(0, 0, 1024, 40);
+  const land = ["#5aa83c", "#69b545", "#d9b26a"];
+  for (let i = 0; i < 22; i++) {
+    g.fillStyle = land[i % 3]; g.beginPath();
+    const cx = r() * 1024, cy = 110 + r() * 330, rx = 40 + r() * 90, ry = 25 + r() * 55;
+    g.ellipse(cx, cy, rx, ry, r() * 3, 0, Math.PI * 2); g.fill();
+  }
+  for (let i = 0; i < 30; i++) { g.fillStyle = "rgba(255,255,255,0.55)"; g.beginPath(); g.ellipse(r() * 1024, 80 + r() * 400, 30 + r() * 50, 6 + r() * 8, 0, 0, Math.PI * 2); g.fill(); }
+});
+const stripeTent = () => ctex("canuteTent", 256, 64, (g) => {
+  for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? "#f4efe2" : "#c0353a"; g.fillRect(i * 32, 0, 32, 64); }
+});
+const sailTex = () => ctex("canuteSail", 128, 128, (g) => {
+  for (let i = 0; i < 6; i++) { g.fillStyle = i % 2 ? "#f4efe2" : "#c0353a"; g.fillRect(i * 22, 0, 22, 128); }
+});
+
+/** the beach at x = 0 (sea toward -z). Returns hooks; the water mesh follows STORY.tideAt per frame */
+export const beachSet = (c: { root: THREE.Object3D; kit: Kit; glow: THREE.Group; water: (g: THREE.BufferGeometry) => void }) => {
+  const b = new Batch(), old = new Batch(), r = rng(1030), S = STORY.SLOPE;
+  const sand = lam("cnSand", () => ({ map: rep(sandTex(), 60, 20) }));
+  // sand slope from deep under the sea (z -200) up to the dunes (z 32), then the downs at y 3.2
+  b.add(new THREE.PlaneGeometry(800, 232, 1, 1).rotateX(-Math.PI / 2).rotateX(-Math.atan(S)).translate(0, S * -84, -84), sand);
+  b.add(new THREE.PlaneGeometry(800, 400).rotateX(-Math.PI / 2).translate(0, 3.15, 230), lam("cnGrass", () => ({ map: rep(grassHD(), 100, 50) })));
+  const dune = lam("cnDune", () => ({ map: rep(sandTex(), 6, 3) }));
+  for (let i = 0; i < 26; i++) { const x = -70 + i * 6 + r() * 3, z = 30 + r() * 6; b.add(new THREE.SphereGeometry(1, 20, 10).scale(5 + r() * 3, 2.2 + r() * 1.6, 4 + r() * 2).translate(x, 2.4, z), dune); }
+  for (let i = 0; i < 40; i++) prop(b, c.kit, "plant_bush", -60 + r() * 120, 3.4, 31 + r() * 8, 0.6 + r() * 0.6, r() * 6);
+  // green downs and far trees
+  const hill = lam("cnHill", () => ({ map: rep(grassHD(), 14, 6) }));
+  for (const [x, z, rx, ry] of [[-60, 120, 80, 18], [40, 140, 100, 24], [140, 110, 70, 16], [-150, 90, 60, 14]] as const) b.add(new THREE.SphereGeometry(1, 28, 12).scale(rx, ry, 40).translate(x, 1, z), hill);
+  for (let i = 0; i < 30; i++) prop(b, c.kit, r() > 0.5 ? "tree_oak" : "tree_fat", -90 + r() * 180, 3.1, 50 + r() * 40, 5 + r() * 5, r() * 6);
+  // chalk cliffs on the left, running out to sea, grass on top
+  const chalk = lam("cnChalk", () => ({ color: "#f1ece0" })), turf = lam("cnTurf", () => ({ color: "#5fa845" }));
+  for (let i = 0; i < 9; i++) {
+    const z = -120 + i * 20, x = -46 - i * 2 - r() * 4, h = 16 + r() * 6;
+    b.add(boxGeo(V(x - 40, -2, z - 10), V(x, h, z + 11)), chalk);
+    b.add(boxGeo(V(x - 40.5, h, z - 10.5), V(x + 0.6, h + 1.0, z + 11.5)), turf);
+  }
+  // far headland on the right
+  b.add(new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2).scale(90, 14, 50).translate(170, -1, -260), hill);
+  // the royal pavilion: striped drum, red cone roof, gold ball, pennant
+  const tx = 7.5, tz = 13, ty = S * tz;
+  old.add(new THREE.CylinderGeometry(2.3, 2.3, 2.6, 24, 1, true).translate(tx, ty + 1.3, tz), lam("cnTentWall", () => ({ map: rep(stripeTent(), 3, 1), side: THREE.DoubleSide })));
+  old.add(new THREE.ConeGeometry(2.7, 2.2, 24).translate(tx, ty + 3.7, tz), lam("cnTentRoof", () => ({ color: "#c0353a" })));
+  old.add(new THREE.SphereGeometry(0.22, 12, 8).translate(tx, ty + 4.9, tz), lam("cnGold", () => ({ color: "#f2c230" })));
+  const pole = lam("cnPole", () => ({ color: "#6b4a33" })), flag = lam("cnFlag", () => ({ color: "#c0353a", side: THREE.DoubleSide }));
+  const gold = lam("cnGold", () => ({ color: "#f2c230" }));
+  for (const [x, z] of [[-4.6, 10], [4.4, 9.4], [tx, tz]] as const) {
+    const y0 = S * z, h = x === tx ? 6.4 : 5.2;
+    if (x !== tx) old.add(new THREE.CylinderGeometry(0.06, 0.07, h, 8).translate(x, y0 + h / 2, z), pole);
+    old.add(new THREE.PlaneGeometry(1.8, 0.5).translate(x + 0.9, y0 + h - 0.35, z), flag);
+    old.add(new THREE.PlaneGeometry(1.8, 0.09).translate(x + 0.9, y0 + h - 0.62, z + 0.001), gold);
+  }
+  if (true) { const x = tx, z = tz; old.add(new THREE.CylinderGeometry(0.05, 0.05, 1.6, 8).translate(x, S * z + 5.6, z), pole); }
+  // a beached longship with a striped sail
+  const hullM = lam("cnHull", () => ({ color: "#6e4a2c" }));
+  const ship = new THREE.Matrix4().makeRotationY(-0.5).setPosition(11, S * 4 + 0.35, 4);
+  old.add(canoeGeo(11, 2.6, 1.2), hullM, ship);
+  old.add(new THREE.CylinderGeometry(0.08, 0.1, 6, 8).translate(0, 3, 0), pole, ship);
+  old.add(new THREE.PlaneGeometry(3.4, 2.6).translate(0, 3.9, 0.02), lam("cnSail", () => ({ map: sailTex(), side: THREE.DoubleSide })), new THREE.Matrix4().multiplyMatrices(ship, new THREE.Matrix4().makeRotationY(Math.PI / 2)));
+  for (let i = -3; i <= 3; i++) for (const s of [-1, 1])
+    old.add(new THREE.CylinderGeometry(0.28, 0.28, 0.05, 14).rotateX(Math.PI / 2).rotateY(s > 0 ? 0 : Math.PI).translate(s * 1.28, 0.55, i * 1.05), lam(i % 2 ? "cnShieldA" : "cnShieldB", () => ({ color: i % 2 ? "#e8c75a" : "#3d5f9e" })), ship);
+  b.build(c.root);
+  const oldG = new THREE.Group(); c.root.add(oldG); old.build(oldG);
+  // water: the shared shader, moved up and down with the tide
+  const n = c.root.children.length;
+  c.water(flatQuad(-1100, 1100, -1100, 40, 1, 1, 0));
+  const water = c.root.children[n];
+  // the pale daytime moon the camera rises to (36-38.8 s)
+  const moon = new THREE.Mesh(new THREE.CircleGeometry(STORY.MOON_R, 40), new THREE.MeshBasicMaterial({ map: moonTex(), transparent: true, opacity: 0, fog: false, depthWrite: false }));
+  const [mx, my, mz] = STORY.SKYMOON;
+  moon.position.set(mx, my, mz); moon.lookAt(...STORY.SKYCAM); c.root.add(moon);
+  return {
+    clouds: true,
+    fog: (_l: string, near: number, far: number): [number, number] => [Math.max(near, 60), far * 2.2],
+    update: (u: { id: number; t: number; active: boolean }) => {
+      if (!u.active) return;
+      if (water) water.position.y = STORY.tideAt(u.id, u.t);
+      oldG.visible = u.id !== 4;
+      (moon.material as THREE.MeshBasicMaterial).opacity = u.id === 1 ? Math.max(0, Math.min(0.85, (u.t - 37.0) / 1.3)) : 0;
+      moon.visible = u.id === 1 && u.t > 36.5;
+    },
+  };
+};
+
+/** Earth from above the north pole with the tidal bulge toward the moon, the moon, a pin for "your beach" */
+export const spaceSet = (c: { root: THREE.Object3D }) => {
+  const X = STORY.SPX, R = 8;
+  const earth = new THREE.Group(); earth.position.set(X, 0, 0); c.root.add(earth);
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(R, 64, 32).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ map: earthTex() }));
+  earth.add(ball);
+  // the pin: a little red flag on the rim ("every beach")
+  const pin = new THREE.Group(); earth.add(pin);
+  const a0 = Math.PI / 2 - (STORY.spinAt(42.9) - STORY.spinAt(38.8)) - STORY.spinAt(38.8);
+  pin.rotation.z = a0;
+  pin.add(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 2.2, 8).rotateZ(-Math.PI / 2).translate(R + 1.0, 0, 1.2), new THREE.MeshBasicMaterial({ color: "#f4efe2" })));
+  pin.add(new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 10).translate(R + 2.2, 0, 1.2), new THREE.MeshBasicMaterial({ color: "#e24a3a" })));
+  // the ocean bulge: a see-through shell stretched toward the moon (and away from it)
+  const bulgeM = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.45, 0.85, 1.0), transparent: true, opacity: 0.42, depthWrite: false });
+  const bulge = new THREE.Mesh(new THREE.SphereGeometry(R * 1.02, 64, 32), bulgeM);
+  bulge.position.set(X, 0, -0.3); c.root.add(bulge);
+  const moon = new THREE.Mesh(new THREE.SphereGeometry(2.3, 48, 24), new THREE.MeshBasicMaterial({ map: moonTex() }));
+  moon.position.set(...STORY.MOON); c.root.add(moon);
+  return {
+    indoor: false,
+    update: (u: { t: number; active: boolean }) => {
+      if (!u.active) return;
+      const k = STORY.bulgeAt(u.t);
+      bulge.scale.set(1 - 0.05 * k, 1 + 0.3 * k, 1 - 0.05 * k);
+      bulgeM.opacity = 0.08 + 0.3 * k;
+      earth.rotation.z = STORY.spinAt(u.t);
+    },
+  };
+};
